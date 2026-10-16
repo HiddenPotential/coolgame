@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wacky Golf</title>
+<meta name="description" content="Mini golf, but the ball is a rubber duck and the club is a wet fish.">
+<style>
+  :root {
+    --bg: #1d2b1f;
+    --panel: #fdf6e3;
+    --ink: #2b2118;
+    --accent: #ff7a3d;
+    --accent2: #3db4ff;
+    --muted: #7a6a58;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #2f4a33, var(--bg) 70%);
+    color: var(--ink);
+    font-family: "Trebuchet MS", "Comic Sans MS", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 16px 16px;
+    user-select: none; -webkit-user-select: none;
+  }
+  #hud {
+    width: 100%; max-width: 1000px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;
+    background: var(--panel); border-radius: 14px; padding: 8px 14px;
+    box-shadow: 0 4px 0 #c9b98f; margin-bottom: 10px;
+  }
+  #hud .title { font-weight: 900; font-size: 20px; color: var(--accent); letter-spacing: .5px; }
+  #hud .stat { font-size: 15px; }
+  #hud .stat b { font-size: 18px; }
+  #hud button { font: inherit; border: 0; background: #eadfc3; border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  #wrap { position: relative; width: 100%; max-width: min(1000px, calc((100vh - 200px) * 1.5625)); min-width: min(100%, 320px); }
+  canvas {
+    display: block; width: 100%; height: auto; border-radius: 16px;
+    box-shadow: 0 8px 0 #0f1a10, 0 12px 30px rgba(0,0,0,.4);
+    touch-action: none; cursor: crosshair; background: #4caf50;
+  }
+  #toast {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+    background: rgba(253,246,227,.95); padding: 8px 16px; border-radius: 999px;
+    font-weight: 700; font-size: 16px; pointer-events: none;
+    opacity: 0; transition: opacity .25s; max-width: 90%; text-align: center;
+    box-shadow: 0 3px 0 #c9b98f;
+  }
+  #toast.show { opacity: 1; }
+  .screen {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(15,26,16,.55); border-radius: 16px; padding: 12px;
+  }
+  .screen.show { display: flex; }
+  .card {
+    background: var(--panel); border-radius: 18px; padding: 20px 26px; max-width: 520px; width: 100%;
+    text-align: center; box-shadow: 0 6px 0 #c9b98f; max-height: 100%; overflow: auto;
+  }
+  .card h1 { margin: 0 0 6px; font-size: 38px; color: var(--accent); }
+  .card h2 { margin: 0 0 6px; font-size: 26px; }
+  .card p { margin: 8px 0; line-height: 1.4; }
+  .big-emoji { font-size: 64px; line-height: 1.1; }
+  .btn {
+    font: inherit; font-weight: 800; font-size: 20px; border: 0; cursor: pointer;
+    background: var(--accent); color: white; padding: 10px 26px; border-radius: 12px;
+    box-shadow: 0 4px 0 #c4501d; margin-top: 10px;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c4501d; }
+  .small { font-size: 13px; color: var(--muted); }
+  table.score { border-collapse: collapse; margin: 10px auto; font-size: 14px; width: 100%; }
+  table.score td, table.score th { border-bottom: 1px solid #e3d7b8; padding: 3px 6px; }
+  table.score th { text-align: left; }
+  table.score td { text-align: center; }
+  #clubs {
+    width: 100%; max-width: 1000px; margin-top: 14px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .club {
+    font: inherit; border: 3px solid transparent; background: var(--panel); border-radius: 12px;
+    padding: 6px 8px; cursor: pointer; text-align: left; display: flex; gap: 8px; align-items: center;
+    box-shadow: 0 4px 0 #c9b98f;
+  }
+  .club .e { font-size: 30px; }
+  .club .n { font-weight: 800; font-size: 15px; }
+  .club .d { font-size: 12px; color: var(--muted); }
+  .club.sel { border-color: var(--accent); background: #fff1e0; }
+  .club kbd { font-size: 11px; background: #eadfc3; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  #item {
+    width: 100%; max-width: 1000px; margin-top: 10px; color: #e9f5e0; font-size: 14px; text-align: center;
+  }
+  @media (max-width: 640px) {
+    #clubs { grid-template-columns: repeat(2, 1fr); }
+    .club .d { display: none; }
+    .card h1 { font-size: 30px; }
+    #hud .title { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+  <div id="hud">
+    <span class="title">⛳ Wacky Golf</span>
+    <span class="stat">Hole <b id="hHole">1</b>/9 · <span id="hName"></span></span>
+    <span class="stat">Par <b id="hPar">3</b></span>
+    <span class="stat">Strokes <b id="hStrokes">0</b></span>
+    <span class="stat">Total <b id="hTotal">E</b></span>
+    <button id="mute" title="Toggle sound (M)">🔊</button>
+  </div>
+
+  <div id="wrap">
+    <canvas id="c" width="1000" height="640"></canvas>
+    <div id="toast"></div>
+
+    <div class="screen show" id="titleScreen">
+      <div class="card">
+        <div class="big-emoji">🦆🐟🍕</div>
+        <h1>Wacky Golf</h1>
+        <p>Nine holes. No balls. No clubs.<br>Just a rubber duck, a wet fish, and your dignity.</p>
+        <p class="small">Drag anywhere to pull back and aim, release to swing.<br>Pick a club with the buttons below or keys 1–4.</p>
+        <button class="btn" id="startBtn">Tee off!</button>
+        <p class="small" id="bestLine"></p>
+      </div>
+    </div>
+
+    <div class="screen" id="introScreen">
+      <div class="card">
+        <p class="small" id="introHole"></p>
+        <h2 id="introName"></h2>
+        <div class="big-emoji" id="introEmoji"></div>
+        <p>Today you'll be hitting a <b id="introItem"></b>.</p>
+        <p id="introDesc"></p>
+        <p class="small" id="introTip"></p>
+        <button class="btn" id="introBtn">Let's go</button>
+      </div>
+    </div>
+
+    <div class="screen" id="endScreen">
+      <div class="card">
+        <div class="big-emoji" id="endEmoji">🏆</div>
+        <h2 id="endTitle"></h2>
+        <p id="endLine"></p>
+        <table class="score" id="scoreTable"></table>
+        <button class="btn" id="againBtn">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="clubs"></div>
+  <div id="item"></div>
+
+<script>
+(() => {
+"use strict";
+
+const W = 1000, H = 640, B = 20; // field size and border thickness
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+// ---------- Things you hit ----------
+// damp: speed kept per 1/60 s. bounce: wall restitution. power: shot strength multiplier.
+const ITEMS = {
+  duck:   { emoji: '🦆', name: 'Rubber Duck',  r: 16, bounce: .7,  damp: .985, power: 1,    desc: 'Floats! Water only slows it down.', floats: true },
+  egg:    { emoji: '🥚', name: 'Raw Egg',      r: 14, bounce: .45, damp: .986, power: 1,    desc: 'Fragile. Smack a wall too hard and it cracks (+1 stroke).', fragile: true },
+  pizza:  { emoji: '🍕', name: 'Pizza Slice',  r: 16, bounce: .25, damp: .962, power: 1.15, desc: 'Greasy and sticky. Barely slides. Use the speed pads.' },
+  donut:  { emoji: '🍩', name: 'Glazed Donut', r: 16, bounce: .6,  damp: .993, power: .85,  desc: 'Slippery glaze. It slides basically forever.' },
+  melon:  { emoji: '🍉', name: 'Watermelon',   r: 22, bounce: .3,  damp: .988, power: .8,   desc: 'Heavy. Bumpers barely move it.', heavy: true },
+  frog:   { emoji: '🐸', name: 'Frog',         r: 16, bounce: .6,  damp: .982, power: 1,    desc: 'Has opinions. Sometimes hops off on its own after it stops.', hops: true },
+  sock:   { emoji: '🧦', name: 'Lost Sock',    r: 15, bounce: .15, damp: .98,  power: 1.05, desc: 'Floppy. Zero bounce.' },
+  cheese: { emoji: '🧀', name: 'Bouncy Cheese',r: 16, bounce: 1.08,damp: .987, power: .95,  desc: 'Somehow speeds UP when it hits a wall.' },
+  banana: { emoji: '🍌', name: 'Banana',       r: 16, bounce: .55, damp: .986, power: 1,    desc: 'Curves on its own. It is shaped that way.', curve: 1 },
+};
+
+// ---------- Things you hit them with ----------
+const CLUBS = [
+  { emoji: '🥖', name: 'Baguette',       desc: 'Crusty. Reliable. French.',          power: 1 },
+  { emoji: '🐟', name: 'Wet Fish',       desc: 'Huge slap, terrible aim.',           power: 1.35, wobble: .4 },
+  { emoji: '🍳', name: 'Frying Pan',     desc: 'Lobs it over water and sand.',       power: .95, lob: true },
+  { emoji: '🐔', name: 'Rubber Chicken', desc: 'Curves the shot. Which way? Unclear.', power: 1, chicken: true },
+];
+
+// ---------- Course ----------
+// walls/water/sand/boosts: [x, y, w, h(, angle)], bumpers: [x, y, r],
+// mills: [x, y, armLength, radPerSec], movers: [x, y, w, h, dx, dy, periodSec, phase]
+const HOLES = [
+  { name: 'Duck Pond Drive', item: 'duck', par: 2, start: [130, 320], cup: [870, 320],
+    water: [[360, 110, 280, 420]], walls: [[300, 20, 24, 120], [300, 500, 24, 120]], bumpers: [[760, 200, 26], [760, 440, 26]],
+    tip: 'Ducks float. Just send it straight through the pond.' },
+  { name: 'Eggshell Alley', item: 'egg', par: 4, start: [110, 540], cup: [880, 530],
+    walls: [[230, 190, 30, 430], [490, 20, 30, 430], [740, 190, 30, 430]],
+    tip: 'Gentle shots. Nobody likes scrambled eggs on the green.' },
+  { name: 'Speedy Pizza Delivery', item: 'pizza', par: 3, start: [100, 320], cup: [900, 320],
+    boosts: [[200, 270, 140, 100, 0], [520, 270, 140, 100, 0]],
+    sand: [[380, 100, 110, 160], [380, 380, 110, 160]],
+    walls: [[720, 20, 24, 240], [720, 380, 24, 240]],
+    tip: 'Pizza is sticky. The orange speed pads help a lot.' },
+  { name: 'Windmill of Doom', item: 'donut', par: 3, start: [120, 320], cup: [870, 320],
+    walls: [[440, 20, 120, 170], [440, 450, 120, 170], [930, 20, 50, 600]],
+    mills: [[500, 320, 125, 1.6]],
+    sand: [[760, 120, 170, 90], [760, 430, 170, 90]],
+    tip: 'Time the windmill. The donut will not stop on its own.' },
+  { name: 'Melon Pinball', item: 'melon', par: 3, start: [120, 520], cup: [870, 130],
+    bumpers: [[340, 200, 34], [340, 440, 34], [520, 320, 34], [700, 200, 34], [700, 440, 34], [520, 110, 28], [520, 530, 28]],
+    tip: 'A watermelon has no fear of bumpers.' },
+  { name: 'Frog Bog', item: 'frog', par: 4, start: [100, 320], cup: [890, 110],
+    water: [[200, 20, 580, 250], [200, 380, 580, 240], [780, 200, 120, 60]],
+    tip: 'Narrow bridge. Frogs hop. You see the problem. (The frying pan can lob over water.)' },
+  { name: 'The Sock Drawer', item: 'sock', par: 3, start: [110, 320], cup: [890, 320],
+    movers: [[300, 30, 30, 190, 0, 390, 2.6, 0], [500, 30, 30, 190, 0, 390, 2.0, 2], [700, 30, 30, 190, 0, 390, 1.6, 4]],
+    tip: 'The drawers open and close. Socks get lost in there.' },
+  { name: 'Cheese Ricochet', item: 'cheese', par: 3, start: [120, 320], cup: [830, 320],
+    walls: [[440, 150, 30, 340], [740, 220, 24, 200], [740, 220, 150, 24], [740, 396, 150, 24]],
+    tip: 'The cup is boxed in from the left. Bank it in from the right side.' },
+  { name: 'The Grand Banana', item: 'banana', par: 5, start: [100, 540], cup: [890, 100],
+    water: [[290, 400, 260, 220]], sand: [[620, 20, 120, 150]],
+    walls: [[640, 300, 340, 26]], mills: [[480, 200, 105, -2.1]],
+    movers: [[790, 30, 24, 120, 0, 150, 2.2, 0]],
+    boosts: [[110, 160, 100, 140, 0]],
+    tip: 'Everything at once. The banana curves. Good luck.' },
+];
+
+// ---------- Commentary ----------
+const LINES = {
+  splash: ['Splash! That one is sleeping with the fishes.', 'Glub glub. +1 stroke.', 'It did not float. +1 stroke.'],
+  crack:  ['CRACK! Omelette time. +1 stroke.', 'The egg has perished. +1 stroke.', 'Scrambled. +1 stroke.'],
+  hop:    ['The frog hopped. Nobody told it to.', 'Ribbit. (The frog moved.)', 'The frog has made a choice.'],
+  squawk: ['BAWK!', 'The chicken has spoken.', 'Squeeeak!'],
+  duckwater: ['The duck is having a lovely swim.', 'Quack. Unbothered.'],
+  lip:    ['Lipped out! Too fast.', 'So close. Slow down a bit.'],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// ---------- Sound ----------
+let ac = null, muted = false;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+  return ac;
+}
+function tone(freq, dur, type = 'sine', vol = .15, slideTo = 0, delay = 0) {
+  const a = audio(); if (!a || muted) return;
+  const t = a.currentTime + delay;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + .02);
+}
+function noise(dur, vol = .2, freq = 1000) {
+  const a = audio(); if (!a || muted) return;
+  const len = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = vol;
+  s.buffer = buf; s.connect(f).connect(g).connect(a.destination); s.start();
+}
+const sfx = {
+  hit(club) {
+    if (club.chicken) { tone(900, .25, 'sawtooth', .12, 300); tone(1200, .15, 'square', .06, 500, .05); }
+    else if (club.wobble) { noise(.18, .35, 700); tone(160, .1, 'sine', .2, 80); }
+    else if (club.lob) { tone(520, .4, 'triangle', .2, 480); tone(1040, .3, 'sine', .08); }
+    else { noise(.08, .3, 2500); tone(220, .08, 'triangle', .15, 120); }
+  },
+  wall(v) { tone(180 + Math.random() * 40, .06, 'square', Math.min(.12, v / 6000)); },
+  boing() { tone(300, .25, 'sine', .2, 900); },
+  splash() { noise(.6, .3, 900); tone(400, .3, 'sine', .08, 120); },
+  crack() { noise(.12, .4, 4000); tone(1400, .05, 'square', .1, 700); },
+  ribbit() { tone(140, .08, 'square', .15, 110); tone(160, .1, 'square', .15, 120, .12); },
+  quack() { tone(500, .12, 'sawtooth', .1, 350); },
+  sink() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .25, 'triangle', .15, 0, i * .09)); },
+  boost() { tone(400, .1, 'sine', .05, 800); },
+};
+
+// ---------- Geometry helpers ----------
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const inRect = (x, y, r) => x > r[0] && x < r[0] + r[2] && y > r[1] && y < r[1] + r[3];
+const border = [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
+
+// ---------- Game state ----------
+let holeIdx = 0, hole = null, item = null, clubIdx = 0;
+let strokes = 0, scores = [], time = 0;
+let ball = null, aim = null, particles = [], swing = null, sinkAnim = 0;
+let state = 'title'; // title | intro | play | sinking | end
+
+function moverRect(m, t) {
+  const k = .5 - .5 * Math.cos((2 * Math.PI * t) / m[6] + m[7]);
+  return [m[0] + m[4] * k, m[1] + m[5] * k, m[2], m[3]];
+}
+function moverVel(m, t) {
+  const w = (2 * Math.PI) / m[6], s = .5 * Math.sin(w * t + m[7]) * w;
+  return [m[4] * s, m[5] * s];
+}
+
+function loadHole(i) {
+  holeIdx = i; hole = HOLES[i]; item = ITEMS[hole.item];
+  for (const k of ['walls', 'water', 'sand', 'boosts', 'bumpers', 'mills', 'movers']) hole[k] = hole[k] || [];
+  strokes = 0; particles = []; aim = null; swing = null;
+  ball = { x: hole.start[0], y: hole.start[1], vx: 0, vy: 0, rot: 0, spin: 0, air: 0, airT: 0,
+           moving: false, last: [...hole.start], stopT: 0, hopped: true, scale: 1 };
+  updateHud();
+  $('introHole').textContent = `Hole ${i + 1} of ${HOLES.length} · Par ${hole.par}`;
+  $('introName').textContent = hole.name;
+  $('introEmoji').textContent = item.emoji;
+  $('introItem').textContent = item.name;
+  $('introDesc').textContent = item.desc;
+  $('introTip').textContent = '💡 ' + hole.tip;
+  $('item').textContent = `${item.emoji} ${item.name}: ${item.desc}`;
+  show('introScreen'); state = 'intro';
+}
+
+function show(id) {
+  for (const s of document.querySelectorAll('.screen')) s.classList.toggle('show', s.id === id);
+}
+
+function totalVsPar() {
+  let d = 0; scores.forEach((s, i) => d += s - HOLES[i].par);
+  return d;
+}
+const fmtPar = d => d === 0 ? 'E' : (d > 0 ? '+' + d : '' + d);
+
+function updateHud() {
+  $('hHole').textContent = holeIdx + 1;
+  $('hName').textContent = hole.name;
+  $('hPar').textContent = hole.par;
+  $('hStrokes').textContent = strokes;
+  $('hTotal').textContent = fmtPar(totalVsPar());
+}
+
+let toastTimer = 0;
+function toast(msg, ms = 1800) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ---------- Clubs UI ----------
+function buildClubs() {
+  const el = $('clubs'); el.innerHTML = '';
+  CLUBS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'club' + (i === clubIdx ? ' sel' : '');
+    b.innerHTML = `<span class="e">${c.emoji}</span><span><span class="n">${c.name}<kbd>${i + 1}</kbd></span><br><span class="d">${c.desc}</span></span>`;
+    b.onclick = () => selectClub(i);
+    el.appendChild(b);
+  });
+}
+function selectClub(i) {
+  clubIdx = i;
+  [...$('clubs').children].forEach((b, j) => b.classList.toggle('sel', j === i));
+}
+
+// ---------- Input ----------
+function toField(e) {
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX - r.left) * (W / r.width), (e.clientY - r.top) * (H / r.height)];
+}
+const MAX_PULL = 230, MAX_SPEED = 1050;
+canvas.addEventListener('pointerdown', e => {
+  audio();
+  if (state !== 'play' || ball.moving || e.button === 2) { aim = null; return; }
+  canvas.setPointerCapture(e.pointerId);
+  const [x, y] = toField(e);
+  aim = { sx: x, sy: y, x, y };
+});
+canvas.addEventListener('pointermove', e => {
+  if (!aim) return;
+  [aim.x, aim.y] = toField(e);
+});
+canvas.addEventListener('pointerup', () => {
+  if (!aim) return;
+  const p = aimVec(); aim = null;
+  if (p.power > .04) shoot(p);
+});
+canvas.addEventListener('pointercancel', () => aim = null);
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); aim = null; });
+
+function aimVec() {
+  const dx = aim.sx - aim.x, dy = aim.sy - aim.y, len = Math.hypot(dx, dy);
+  return { ang: Math.atan2(dy, dx), power: clamp(len / MAX_PULL, 0, 1) };
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key >= '1' && e.key <= '4') selectClub(+e.key - 1);
+  if (e.key === 'Escape') aim = null;
+  if (e.key === 'm' || e.key === 'M') toggleMute();
+});
+function toggleMute() { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; }
+$('mute').onclick = toggleMute;
+
+// ---------- Shooting ----------
+function shoot({ ang, power }) {
+  const club = CLUBS[clubIdx];
+  if (club.wobble) ang += (Math.random() * 2 - 1) * club.wobble;
+  const sp = MAX_SPEED * power * club.power * item.power;
+  ball.last = [ball.x, ball.y];
+  ball.vx = Math.cos(ang) * sp; ball.vy = Math.sin(ang) * sp;
+  ball.spin = club.chicken ? (Math.random() < .5 ? -1 : 1) * (1.2 + Math.random() * .8) : 0;
+  ball.air = 0;
+  if (club.lob) { ball.airT = .35 + .55 * power; ball.air = ball.airT; }
+  ball.moving = true; ball.hopped = false; ball.stopT = 0;
+  strokes++; updateHud();
+  swing = { t: 0, ang, club };
+  sfx.hit(club);
+  if (club.chicken) toast(pick(LINES.squawk), 900);
+  for (let i = 0; i < 10; i++) puff(ball.x, ball.y, '#e8f5d0');
+}
+
+function penalty(kind) {
+  strokes++; updateHud();
+  toast(pick(LINES[kind]));
+  ball.x = ball.last[0]; ball.y = ball.last[1];
+  ball.vx = ball.vy = 0; ball.spin = 0; ball.air = 0; ball.moving = false; ball.hopped = true;
+  checkGiveUp();
+}
+
+function checkGiveUp() {
+  if (strokes >= 10 && state === 'play') {
+    toast('Ten strokes. The item has been confiscated.', 2200);
+    finishHole(10);
+  }
+}
+
+// ---------- Particles ----------
+function puff(x, y, color, speed = 120, life = .5, size = 4) {
+  const a = Math.random() * Math.PI * 2, s = Math.random() * speed;
+  particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, color, size });
+}
+function confetti(x, y) {
+  const cols = ['#ff7a3d', '#3db4ff', '#ffd23d', '#ff4fa3', '#7dff6a'];
+  for (let i = 0; i < 80; i++) puff(x, y, pick(cols), 420, 1.2, 5);
+}
+
+// ---------- Physics ----------
+function collideRect(r, mv) {
+  const rad = item.r;
+  const cx = clamp(ball.x, r[0], r[0] + r[2]), cy = clamp(ball.y, r[1], r[1] + r[3]);
+  let dx = ball.x - cx, dy = ball.y - cy, d = Math.hypot(dx, dy);
+  if (d >= rad) return;
+  let nx, ny;
+  if (d > 1e-6) { nx = dx / d; ny = dy / d; }
+  else { // center inside the rect: push out the nearest side
+    const l = ball.x - r[0], rr = r[0] + r[2] - ball.x, t = ball.y - r[1], b = r[1] + r[3] - ball.y;
+    const m = Math.min(l, rr, t, b);
+    [nx, ny] = m === l ? [-1, 0] : m === rr ? [1, 0] : m === t ? [0, -1] : [0, 1];
+    d = -m;
+  }
+  ball.x += nx * (rad - d); ball.y += ny * (rad - d);
+  const ux = mv ? mv[0] : 0, uy = mv ? mv[1] : 0;
+  const rvx = ball.vx - ux, rvy = ball.vy - uy, vn = rvx * nx + rvy * ny;
+  if (vn < 0) bounce(nx, ny, vn, rvx, rvy, ux, uy);
+}
+
+function bounce(nx, ny, vn, rvx, rvy, ux, uy) {
+  const impact = -vn;
+  if (item.fragile && impact > 470 && !ball.air) { sfx.crack(); for (let i = 0; i < 20; i++) puff(ball.x, ball.y, i % 2 ? '#ffd23d' : '#fff', 200); penalty('crack'); return; }
+  const e = item.bounce;
+  ball.vx = rvx - (1 + e) * vn * nx + ux;
+  ball.vy = rvy - (1 + e) * vn * ny + uy;
+  // cap speed so the cheese can't go to space
+  const s = Math.hypot(ball.vx, ball.vy);
+  if (s > 1400) { ball.vx *= 1400 / s; ball.vy *= 1400 / s; }
+  if (impact > 60) sfx.wall(impact);
+  if (item === ITEMS.cheese && impact > 200) for (let i = 0; i < 4; i++) puff(ball.x, ball.y, '#ffd23d', 150);
+}
+
+function collideBumper(bm) {
+  const dx = ball.x - bm[0], dy = ball.y - bm[1], d = Math.hypot(dx, dy), min = bm[2] + item.r;
+  if (d >= min || d < 1e-6) return;
+  const nx = dx / d, ny = dy / d;
+  ball.x = bm[0] + nx * min; ball.y = bm[1] + ny * min;
+  const vn = ball.vx * nx + ball.vy * ny;
+  if (vn < 0) { ball.vx -= 2 * vn * nx; ball.vy -= 2 * vn * ny; }
+  const kick = item.heavy ? 120 : 520;
+  const out = ball.vx * nx + ball.vy * ny;
+  if (out < kick) { ball.vx += (kick - out) * nx; ball.vy += (kick - out) * ny; }
+  bm.flash = .2; sfx.boing();
+}
+
+function millArms(m) {
+  const a0 = m[3] * time, arms = [];
+  for (let k = 0; k < 4; k++) { const a = a0 + k * Math.PI / 2; arms.push([Math.cos(a), Math.sin(a)]); }
+  return arms;
+}
+function collideMill(m) {
+  const half = 7;
+  for (const [ax, ay] of millArms(m)) {
+    const px = ball.x - m[0], py = ball.y - m[1];
+    const t = clamp(px * ax + py * ay, 0, m[2]);
+    const qx = ax * t, qy = ay * t;
+    let dx = px - qx, dy = py - qy, d = Math.hypot(dx, dy);
+    if (d >= item.r + half) continue;
+    if (d < 1e-6) { dx = -ay; dy = ax; d = 1; }
+    const nx = dx / d, ny = dy / d;
+    ball.x = m[0] + qx + nx * (item.r + half); ball.y = m[1] + qy + ny * (item.r + half);
+    const ux = -m[3] * qy, uy = m[3] * qx; // blade velocity at contact
+    const rvx = ball.vx - ux, rvy = ball.vy - uy, vn = rvx * nx + rvy * ny;
+    if (vn < 0) { bounce(nx, ny, vn, rvx, rvy, ux, uy); if (!ball.moving) return; }
+    ball.moving = true;
+  }
+}
+
+function step(dt) {
+  if (!ball.moving) {
+    // things can still shove a resting ball
+    for (const m of hole.movers) collideRect(moverRect(m, time), moverVel(m, time));
+    for (const m of hole.mills) collideMill(m);
+    if (Math.hypot(ball.vx, ball.vy) > 5) ball.moving = true;
+    if (!ball.moving && state === 'play') idle(dt);
+    return;
+  }
+  const club = CLUBS[clubIdx];
+  const wasAir = ball.air > 0;
+  if (ball.air > 0) {
+    ball.air -= dt;
+    if (ball.air <= 0) { ball.air = 0; tone(200, .08, 'sine', .15, 90); for (let i = 0; i < 6; i++) puff(ball.x, ball.y, '#e8f5d0'); }
+  }
+  const air = ball.air > 0;
+  const sp0 = Math.hypot(ball.vx, ball.vy);
+
+  // boost pads
+  let onBoost = false;
+  if (!air) for (const bz of hole.boosts) if (inRect(ball.x, ball.y, bz)) {
+    onBoost = true;
+    ball.vx += Math.cos(bz[4]) * 1500 * dt; ball.vy += Math.sin(bz[4]) * 1500 * dt;
+    if (Math.random() < .3) puff(ball.x, ball.y, '#ffb36b', 60);
+    if (Math.random() < .05) sfx.boost();
+  }
+
+  // curve (chicken spin + banana shape)
+  let w = ball.spin;
+  if (item.curve && !air) w += item.curve * -1.1 * Math.min(1, sp0 / 300);
+  if (w) {
+    const c = Math.cos(w * dt), s = Math.sin(w * dt);
+    [ball.vx, ball.vy] = [ball.vx * c - ball.vy * s, ball.vx * s + ball.vy * c];
+  }
+  ball.spin *= Math.exp(-.5 * dt);
+
+  // friction
+  const inSand = !air && hole.sand.some(r => inRect(ball.x, ball.y, r));
+  const inWater = !air && hole.water.some(r => inRect(ball.x, ball.y, r));
+  let damp = air ? .997 : item.damp;
+  if (inSand) damp = item.heavy ? .95 : .9;
+  if (inWater && item.floats) damp = .955;
+  const sNow = Math.hypot(ball.vx, ball.vy);
+  // exponential drag plus a little rolling friction so nothing slides forever
+  const f = Math.pow(damp, dt * 60) * (sNow > 0 ? Math.max(0, 1 - (air ? 0 : 45) * dt / sNow) : 1);
+  ball.vx *= f; ball.vy *= f;
+
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+  ball.rot += (Math.hypot(ball.vx, ball.vy) / item.r) * dt * (ball.vx >= 0 ? 1 : -1) * .5;
+
+  // solids
+  for (const r of border) collideRect(r);
+  for (const r of hole.walls) collideRect(r);
+  for (const m of hole.movers) collideRect(moverRect(m, time), moverVel(m, time));
+  for (const bm of hole.bumpers) collideBumper(bm);
+  for (const m of hole.mills) collideMill(m);
+  if (!ball.moving) return; // a penalty reset happened
+  ball.x = clamp(ball.x, B + item.r, W - B - item.r);
+  ball.y = clamp(ball.y, B + item.r, H - B - item.r);
+
+  // water
+  if (inWater) {
+    if (item.floats) {
+      if (Math.random() < .2) puff(ball.x, ball.y, '#bfe8ff', 50);
+      if (!ball.swam) { ball.swam = true; sfx.quack(); toast(pick(LINES.duckwater), 1200); }
+    } else {
+      sfx.splash();
+      for (let i = 0; i < 25; i++) puff(ball.x, ball.y, '#bfe8ff', 220, .7, 5);
+      penalty('splash'); return;
+    }
+  } else ball.swam = false;
+
+  // cup
+  const sp = Math.hypot(ball.vx, ball.vy);
+  const dx = hole.cup[0] - ball.x, dy = hole.cup[1] - ball.y, d = Math.hypot(dx, dy);
+  if (!air) {
+    if (d < 13 && sp < 520) { sink(); return; }
+    if (d < 13 && sp >= 520 && !ball.lipped) { ball.lipped = true; toast(pick(LINES.lip), 1200); ball.vx += -dy / d * 60; ball.vy += dx / d * 60; }
+    if (d >= 13) ball.lipped = false;
+    if (d < 34 && sp < 380) { ball.vx += dx / d * 700 * dt; ball.vy += dy / d * 700 * dt; }
+  }
+
+  if (!air && !onBoost && sp < 7) {
+    ball.vx = ball.vy = 0; ball.moving = false; ball.stopT = 0; ball.spin = 0;
+    checkGiveUp();
+  }
+}
+
+function idle(dt) {
+  ball.stopT += dt;
+  if (item.hops && !ball.hopped && ball.stopT > .7) {
+    ball.hopped = true;
+    if (Math.random() < .5) {
+      const a = Math.random() * Math.PI * 2;
+      ball.vx = Math.cos(a) * 260; ball.vy = Math.sin(a) * 260;
+      ball.air = .3; ball.airT = .3; ball.moving = true; ball.last = [ball.x, ball.y];
+      sfx.ribbit(); toast(pick(LINES.hop), 1300);
+    }
+  }
+}
+
+function sink() {
+  state = 'sinking'; sinkAnim = 0; ball.moving = false;
+  ball.vx = ball.vy = 0;
+  sfx.sink(); confetti(hole.cup[0], hole.cup[1]);
+  const d = strokes - hole.par;
+  const names = { '-3': 'Albatross!', '-2': 'Eagle!', '-1': 'Birdie!', '0': 'Par.', '1': 'Bogey.', '2': 'Double bogey.' };
+  const msg = strokes === 1 ? `HOLE IN ONE with a ${item.name.toLowerCase()}!` : (names[d] || (d > 0 ? `+${d}. The ${item.name.toLowerCase()} made it eventually.` : 'Incredible!'));
+  toast(msg, 2200);
+  setTimeout(() => finishHole(strokes), 1700);
+}
+
+function finishHole(s) {
+  if (state === 'end' || scores.length > holeIdx) return;
+  state = 'between';
+  scores.push(s); updateHud();
+  setTimeout(() => {
+    if (holeIdx + 1 < HOLES.length) loadHole(holeIdx + 1);
+    else endGame();
+  }, s === 10 && strokes >= 10 ? 1600 : 300);
+}
+
+function endGame() {
+  state = 'end';
+  const total = scores.reduce((a, b) => a + b, 0), par = HOLES.reduce((a, h) => a + h.par, 0), d = total - par;
+  let best = null;
+  try { best = +localStorage.getItem('wackyGolfBest') || null; if (!best || total < best) { localStorage.setItem('wackyGolfBest', total); } } catch (e) {}
+  $('endEmoji').textContent = d <= -3 ? '🏆' : d <= 0 ? '🥇' : d <= 6 ? '🥈' : '🫠';
+  $('endTitle').textContent = `${total} strokes (${fmtPar(d)})`;
+  $('endLine').textContent = d <= 0 ? 'A true master of hitting food with fish.' : d <= 6 ? 'Respectable. The duck is proud of you.' : 'The items have filed a complaint.';
+  let rows = '<tr><th>Hole</th><th></th><th>Par</th><th>You</th></tr>';
+  HOLES.forEach((h, i) => rows += `<tr><th>${i + 1}. ${h.name}</th><td>${ITEMS[h.item].emoji}</td><td>${h.par}</td><td>${scores[i]}</td></tr>`);
+  rows += `<tr><th>Total</th><td></td><td>${par}</td><td><b>${total}</b></td></tr>`;
+  if (best && best < total) rows += `<tr><td colspan="4" class="small">Your best: ${best}</td></tr>`;
+  $('scoreTable').innerHTML = rows;
+  show('endScreen');
+}
+
+// ---------- Drawing ----------
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function emoji(ch, x, y, size, rot = 0) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+  ctx.fillText(ch, 0, size * .05);
+  ctx.restore();
+}
+function drawWall(r) {
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; roundRect(r[0] + 4, r[1] + 5, r[2], r[3], 5); ctx.fill();
+  ctx.fillStyle = '#9b6a3c'; roundRect(r[0], r[1], r[2], r[3], 5); ctx.fill();
+  ctx.fillStyle = '#b8834f'; roundRect(r[0] + 3, r[1] + 3, r[2] - 6, Math.max(2, r[3] - 6), 3); ctx.fill();
+}
+
+function draw() {
+  // grass stripes
+  for (let i = 0; i < 10; i++) { ctx.fillStyle = i % 2 ? '#5cb85c' : '#54ad54'; ctx.fillRect(i * W / 10, 0, W / 10 + 1, H); }
+
+  for (const r of hole.sand) {
+    ctx.fillStyle = '#e8d29a'; roundRect(r[0], r[1], r[2], r[3], 30); ctx.fill();
+    ctx.fillStyle = '#d9c084';
+    for (let i = 0; i < 12; i++) { const px = r[0] + ((i * 37) % r[2]), py = r[1] + ((i * 53) % r[3]); ctx.fillRect(px, py, 3, 3); }
+  }
+  for (const r of hole.water) {
+    ctx.fillStyle = '#3d8fd6'; roundRect(r[0], r[1], r[2], r[3], 24); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+    ctx.save(); roundRect(r[0], r[1], r[2], r[3], 24); ctx.clip();
+    for (let y = r[1] + 20; y < r[1] + r[3]; y += 34) {
+      ctx.beginPath();
+      for (let x = r[0]; x <= r[0] + r[2]; x += 10) ctx.lineTo(x, y + Math.sin(x / 20 + time * 2 + y) * 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  for (const bz of hole.boosts) {
+    ctx.fillStyle = '#ff9a4d'; roundRect(bz[0], bz[1], bz[2], bz[3], 10); ctx.fill();
+    ctx.save(); roundRect(bz[0], bz[1], bz[2], bz[3], 10); ctx.clip();
+    ctx.translate(bz[0] + bz[2] / 2, bz[1] + bz[3] / 2); ctx.rotate(bz[4]);
+    ctx.fillStyle = '#fff3e0';
+    const off = (time * 80) % 40;
+    for (let x = -bz[2] - 40; x < bz[2] + 40; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x + off, -18); ctx.lineTo(x + off + 16, 0); ctx.lineTo(x + off, 18); ctx.lineTo(x + off + 8, 0); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // cup + flag
+  const [cx, cy] = hole.cup;
+  ctx.fillStyle = '#2f7d32'; ctx.beginPath(); ctx.arc(cx, cy, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#eee'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 62); ctx.stroke();
+  const wave = Math.sin(time * 4) * 4;
+  ctx.fillStyle = '#ff4f4f'; ctx.beginPath(); ctx.moveTo(cx, cy - 62); ctx.lineTo(cx + 30, cy - 54 + wave); ctx.lineTo(cx, cy - 44); ctx.fill();
+
+  // start tee
+  ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.beginPath(); ctx.arc(hole.start[0], hole.start[1], 26, 0, Math.PI * 2); ctx.fill();
+
+  for (const r of border) drawWall(r);
+  for (const r of hole.walls) drawWall(r);
+  for (const m of hole.movers) {
+    const r = moverRect(m, time); drawWall(r);
+    emoji('🧦', r[0] + r[2] / 2, r[1] + r[3] / 2, 18);
+  }
+  for (const bm of hole.bumpers) {
+    bm.flash = Math.max(0, (bm.flash || 0) - 1 / 60);
+    const s = bm[2] + bm.flash * 25;
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(bm[0] + 4, bm[1] + 5, s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = bm.flash ? '#ffd23d' : '#ff4fa3'; ctx.beginPath(); ctx.arc(bm[0], bm[1], s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(bm[0], bm[1], s * .55, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const m of hole.mills) {
+    ctx.save(); ctx.translate(m[0], m[1]);
+    ctx.lineCap = 'round';
+    for (const [ax, ay] of millArms(m)) {
+      ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(4, 5); ctx.lineTo(ax * m[2] + 4, ay * m[2] + 5); ctx.stroke();
+    }
+    millArms(m).forEach(([ax, ay], k) => {
+      ctx.strokeStyle = k % 2 ? '#f5f0e6' : '#e04848'; ctx.lineWidth = 14;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ax * m[2], ay * m[2]); ctx.stroke();
+    });
+    ctx.fillStyle = '#7a4a24'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // aim guide
+  if (aim && state === 'play') {
+    const { ang, power } = aimVec(), club = CLUBS[clubIdx];
+    const len = 40 + power * 200;
+    ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ang);
+    const col = `hsl(${120 - power * 120},90%,55%)`;
+    ctx.setLineDash([10, 8]); ctx.lineWidth = 5; ctx.strokeStyle = col;
+    ctx.beginPath();
+    if (club.wobble) for (let x = 0; x <= len; x += 6) ctx.lineTo(x, Math.sin(x / 10 + time * 12) * 8 * (x / len));
+    else if (club.chicken) { ctx.moveTo(0, 0); ctx.quadraticCurveTo(len / 2, Math.sin(time * 5) * 40, len, 0); }
+    else { ctx.moveTo(0, 0); ctx.lineTo(len, 0); }
+    ctx.stroke(); ctx.setLineDash([]);
+    if (club.lob) { ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(len / 2, -60 * power, len, 0); ctx.stroke(); }
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(len + 14, 0); ctx.lineTo(len - 4, -11); ctx.lineTo(len - 4, 11); ctx.fill();
+    // the club, wound up behind the item
+    emoji(club.emoji, -34 - power * 30, 0, 38, Math.PI / 2 * (club.chicken ? 0 : 1));
+    ctx.restore();
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(Math.round(power * 100) + '%', ball.x, ball.y - item.r - 14);
+  }
+
+  // swing follow-through
+  if (swing) {
+    swing.t += 1 / 60;
+    if (swing.t > .35) swing = null;
+    else {
+      const k = swing.t / .35;
+      ctx.globalAlpha = 1 - k;
+      const bx = ball.last[0] - Math.cos(swing.ang) * (30 - k * 40), by = ball.last[1] - Math.sin(swing.ang) * (30 - k * 40);
+      emoji(swing.club.emoji, bx, by, 40, swing.ang + Math.PI / 2 - k * 1.5);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // the item
+  {
+    let lift = 0, scale = 1;
+    if (ball.air > 0) { const k = 1 - ball.air / ball.airT; lift = Math.sin(k * Math.PI) * 50 * Math.min(1, ball.airT); scale = 1 + lift / 80; }
+    if (state === 'sinking') { sinkAnim += 1 / 60; scale = Math.max(0, 1 - sinkAnim * 2.5); ball.x += (hole.cup[0] - ball.x) * .2; ball.y += (hole.cup[1] - ball.y) * .2; }
+    if (scale > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.beginPath(); ctx.ellipse(ball.x + 3 + lift * .3, ball.y + 6 + lift * .4, item.r * .9, item.r * .5, 0, 0, Math.PI * 2); ctx.fill();
+      const bob = item.floats && hole.water.some(r => inRect(ball.x, ball.y, r)) ? Math.sin(time * 6) * 2 : 0;
+      emoji(item.emoji, ball.x, ball.y - lift + bob, item.r * 2.2 * scale, item.hops || item.floats ? 0 : ball.rot);
+    }
+  }
+
+  // particles
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // pull-back hint
+  if (state === 'play' && !ball.moving && !aim && strokes === 0) {
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('drag back to aim, let go to swing', clamp(ball.x, 160, W - 160), ball.y + item.r + 26);
+  }
+}
+
+// ---------- Loop ----------
+let lastT = performance.now();
+function frame(now) {
+  let dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  time += dt;
+  if (state === 'play') {
+    const n = 6, h = dt / n;
+    for (let i = 0; i < n && state === 'play'; i++) step(h);
+  }
+  for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .94; p.vy *= .94; p.life -= dt; }
+  particles = particles.filter(p => p.life > 0);
+  if (hole) draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Start ----------
+function newGame() { scores = []; loadHole(0); }
+$('startBtn').onclick = () => { audio(); newGame(); };
+$('introBtn').onclick = () => { show(null); state = 'play'; };
+$('againBtn').onclick = newGame;
+try { const b = localStorage.getItem('wackyGolfBest'); if (b) $('bestLine').textContent = `Your best round: ${b} strokes`; } catch (e) {}
+
+buildClubs();
+hole = HOLES[0]; item = ITEMS[hole.item];
+for (const k of ['walls', 'water', 'sand', 'boosts', 'bumpers', 'mills', 'movers']) hole[k] = hole[k] || [];
+ball = { x: hole.start[0], y: hole.start[1], vx: 0, vy: 0, rot: 0, spin: 0, air: 0, airT: 1, moving: false, last: [...hole.start] };
+updateHud();
+// ?hole=N jumps straight to a hole (handy for practice)
+const jump = +new URLSearchParams(location.search).get('hole');
+if (jump >= 1 && jump <= HOLES.length) { scores = HOLES.slice(0, jump - 1).map(h => h.par); loadHole(jump - 1); }
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
