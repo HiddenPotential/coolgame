@@ -1504,6 +1504,113 @@ function faceCamera(o) {
   o.rotation.x = -Math.atan2(camera.position.y - o.position.y, Math.hypot(dx, dz)) * .55;
 }
 
+// ----- the trolls as 3D models (built in world units, facing +Z unless noted) -----
+const shiny = (color, s = 100) => new THREE.MeshPhongMaterial({ color, shininess: s });
+const yawTo = (o, x, z) => Math.atan2(x - o.position.x, z - o.position.z);
+function turnToCamera(o) { o.rotation.order = 'YXZ'; o.rotation.y = yawTo(o, camera.position.x, camera.position.z); }
+
+// a hamster in a hard hat, standing at the origin so it can hide below the ground
+function moleModel() {
+  const g = new THREE.Group(), fur = L(0xd9a066), cream = L(0xfff1dc), pink = L(0xff9db5), eye = shiny(0x111111, 140);
+  const p = (geo, m, x, y, z) => part(g, geo, m, x, y, z);
+  p(SPH(), fur, 0, 20, 0).scale.set(17, 21, 15);
+  p(SPH(), cream, 0, 17, 7).scale.set(11, 14, 9);
+  p(SPH(), fur, 0, 41, 2).scale.set(14, 12, 12);
+  for (const s of [-1, 1]) {
+    p(SPH(16), cream, s * 8, 38, 9).scale.setScalar(6);
+    p(SPH(12), fur, s * 9, 51, 0).scale.set(5, 6, 3);
+    p(SPH(12), pink, s * 9, 51, 1.8).scale.set(3, 4, 2);
+    p(SPH(12), eye, s * 5, 44, 11.5).scale.setScalar(2.6);
+    p(SPH(8), L(0xffffff), s * 5 + .8, 45, 13.6).scale.setScalar(.8);
+    p(SPH(10), pink, s * 7, 27, 12.5).scale.set(3.6, 3, 3);
+    p(new THREE.BoxGeometry(3, 4.2, 1.2), L(0xffffff), s * 1.6, 35.6, 13.2);
+  }
+  p(SPH(10), pink, 0, 40.5, 14).scale.setScalar(2.1);
+  p(new THREE.SphereGeometry(13, 18, 8, 0, TAU, 0, Math.PI / 2), L(0xffd23d), 0, 49, 1);
+  p(new THREE.CylinderGeometry(15, 15, 1.5, 20), L(0xf2b90f), 0, 49, 1);
+  p(new THREE.CylinderGeometry(3, 3, 3, 12), new THREE.MeshBasicMaterial({ color: 0xfff7b0 }), 0, 55, 12.5).rotation.x = Math.PI / 2;
+  return g;
+}
+
+// a gloved-up hand on a striped sleeve, wrist at the origin, palm facing +Z
+function handModel() {
+  const g = new THREE.Group(), skin = L(0xffc999);
+  const sleeve = paintTex(16, 64, (x, w, h) => { for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#ffffff' : '#e8402e'; x.fillRect(0, i * h / 8, w, h / 8); } });
+  part(g, new THREE.CylinderGeometry(10, 11, 36, 18), L(0xffffff, { map: sleeve }), 0, 18, 0);
+  part(g, new THREE.CylinderGeometry(11.5, 11.5, 5, 18), L(0xffffff), 0, 36, 0);
+  part(g, new THREE.CylinderGeometry(8, 8.5, 6, 14), skin, 0, 40, 0);
+  part(g, SPH(), skin, 0, 49, 0).scale.set(11, 12, 5);
+  [[-7.5, 13], [-2.5, 16], [2.5, 15], [7.5, 12]].forEach(([x, len]) => {
+    part(g, new THREE.CylinderGeometry(2.5, 2.6, len, 8), skin, x, 58 + len / 2, 0);
+    part(g, new THREE.SphereGeometry(2.5, 8, 6), skin, x, 58 + len, 0);
+    part(g, new THREE.BoxGeometry(3, 3.5, .8), L(0xffe3d0), x, 56 + len, 2.4);
+  });
+  const thumb = part(g, new THREE.CylinderGeometry(3, 3.2, 13, 8), skin, 12, 50, 1.5); thumb.rotation.z = -.75;
+  part(g, new THREE.SphereGeometry(3, 8, 6), skin, 16.5, 54.5, 1.5);
+  return g;
+}
+
+// an eagle flying toward +X, with wings on pivots so they can flap
+function eagleModel() {
+  const g = new THREE.Group(), brown = L(0x5a3a22), white = L(0xfaf7ee), yellow = L(0xffc21f);
+  part(g, SPH(), brown, 0, 0, 0).scale.set(22, 11, 12);
+  part(g, SPH(), white, 18, 6, 0).scale.set(9, 8.5, 8);
+  const beak = part(g, new THREE.ConeGeometry(3.4, 10, 10), yellow, 29, 4, 0); beak.rotation.z = -Math.PI / 2 - .35;
+  for (const s of [-1, 1]) {
+    part(g, SPH(10), shiny(0x111111, 140), 23, 9, s * 5.5).scale.setScalar(1.8);
+    part(g, SPH(10), L(0x2b1a0e), 21, 12, s * 5).scale.set(4, 1.2, 2.5); // grumpy brow
+    const leg = part(g, new THREE.CylinderGeometry(1.6, 1.6, 9, 6), yellow, 4, -12, s * 4);
+    for (const a of [-.6, 0, .6]) {
+      const toe = part(g, new THREE.ConeGeometry(1.1, 6, 6), L(0x222222), 4 + Math.cos(a) * 3, -17, s * 4 + Math.sin(a) * 3);
+      toe.rotation.set(0, -a, -Math.PI / 2 - .9);
+    }
+  }
+  const tail = part(g, new THREE.BoxGeometry(14, 2.5, 16), white, -24, 1, 0); tail.rotation.z = .2;
+  g.userData.wings = [-1, 1].map(s => {
+    const pivot = new THREE.Group(); pivot.position.set(2, 5, s * 8); g.add(pivot);
+    const wing = part(pivot, new THREE.BoxGeometry(20, 2.5, 38), brown, 0, 0, s * 19);
+    part(pivot, new THREE.BoxGeometry(10, 2.6, 12), L(0x3d2716), -6, 0, s * 34);
+    pivot.userData.side = s;
+    return pivot;
+  });
+  return g;
+}
+
+// a puffy cloud with puffed-out cheeks blowing toward +Z, plus wind streaks
+function windModel() {
+  const g = new THREE.Group(), cloud = L(0xffffff), shade = L(0xe3edf7);
+  for (const [x, y, z, r] of [[0, 0, 0, 26], [-22, -4, -2, 18], [22, -3, -2, 19], [-12, 14, -4, 17], [12, 15, -3, 18], [0, -14, 2, 17], [-28, 8, -8, 13], [29, 9, -8, 13]])
+    part(g, SPH(18), r > 17 ? cloud : shade, x, y, z).scale.setScalar(r);
+  for (const s of [-1, 1]) {
+    part(g, SPH(14), L(0xff9db5), s * 15, -6, 20).scale.set(9, 8, 6);
+    const lid = part(g, new THREE.TorusGeometry(3.4, 1, 6, 12, Math.PI), L(0x333a44), s * 9, 7, 24.5); lid.rotation.z = Math.PI;
+  }
+  part(g, new THREE.TorusGeometry(4.5, 1.8, 8, 16), L(0x8a3a3a), 0, -6, 26);
+  part(g, new THREE.CircleGeometry(4.6, 16), L(0x3a1414), 0, -6, 25.8);
+  const streakMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .7, depthWrite: false });
+  g.userData.streaks = [[-8, -2], [0, -10], [8, -4], [-4, -14], [5, 2]].map(([x, y], i) => {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 26), streakMat.clone());
+    s.position.set(x, y - 6, 40); s.userData.phase = i / 5; g.add(s);
+    return s;
+  });
+  return g;
+}
+
+// a little green alien that sits inside the UFO dome
+function alienModel() {
+  const g = new THREE.Group(), green = L(0x7be36b);
+  part(g, new THREE.CylinderGeometry(4, 6, 8, 12), green, 0, 4, 0);
+  part(g, SPH(), green, 0, 15, 0).scale.set(8.5, 9.5, 8);
+  for (const s of [-1, 1]) {
+    const e = part(g, SPH(14), shiny(0x0a0a0a, 160), s * 3.6, 15.5, 6.6); e.scale.set(2.6, 4, 1.4); e.rotation.z = s * .45;
+    part(g, SPH(8), L(0xffffff), s * 3 + .6, 17.5, 7.9).scale.setScalar(.7);
+    const ant = part(g, new THREE.CylinderGeometry(.5, .5, 8, 6), green, s * 3, 27, 0); ant.rotation.z = -s * .25;
+    part(g, new THREE.SphereGeometry(1.8, 10, 8), new THREE.MeshBasicMaterial({ color: 0xd8ff5e }), s * 4.2, 31, 0);
+  }
+  part(g, new THREE.TorusGeometry(2, .5, 6, 10, Math.PI), L(0x2f6b2a), 0, 10.5, 7.4).rotation.z = Math.PI;
+  return g;
+}
+
 const THEME = { sky: 0x9fd8ff, floor: 0x4f9e4b };
 
 function makeFlag(tex) {
@@ -1520,7 +1627,7 @@ function ufoModel() {
   hull.scale.set(60, 14, 60); hull.castShadow = true; g.add(hull);
   const dome = new THREE.Mesh(new THREE.SphereGeometry(24, 24, 12, 0, TAU, 0, Math.PI / 2), new THREE.MeshPhongMaterial({ color: 0x7fe3ff, transparent: true, opacity: .7, shininess: 120 }));
   dome.position.y = 8; g.add(dome);
-  const alien = thickEmoji('👽'); alien.scale.setScalar(24); alien.position.y = 20; g.add(alien);
+  const alien = alienModel(); alien.scale.setScalar(.68); alien.position.y = 8; g.add(alien); g.userData.alien = alien;
   for (let i = 0; i < 10; i++) {
     const l = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 6), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffe14d : 0xff5fa2 }));
     l.position.set(Math.cos(i * TAU / 10) * 55, -2, Math.sin(i * TAU / 10) * 55); g.add(l);
@@ -1616,7 +1723,7 @@ function build3D() {
     const tex = new THREE.CanvasTexture(c);
     level3D.userData.flags = cups.map(() => makeFlag(tex));
   }
-  const U0 = level3D.userData, prop = (ch, size) => { const o = thickEmoji(ch); o.scale.setScalar(size); o.visible = false; level3D.add(o); return o; };
+  const U0 = level3D.userData, prop = o => { o.visible = false; level3D.add(o); return o; };
   if (T.lidOn) {
     const lt = paintTex(128, 128, (x, w, h) => {
       x.fillStyle = '#9aa1a8'; x.fillRect(0, 0, w, h); x.fillStyle = '#d62828'; x.fillRect(0, 44, w, 40);
@@ -1625,10 +1732,10 @@ function build3D() {
     const metal = mat(0x8f969e);
     U0.lid = mesh(new THREE.CylinderGeometry(20, 20, 4, 28), [metal, mat(0xffffff, { map: lt }), metal], 0, 2, 0);
   }
-  if (T.mole) U0.mole = prop('🐹', 56);
-  if (T.thief) U0.hand = prop('✋', 66);
-  if (T.crow) U0.crow = prop('🦅', 80);
-  if (T.gust) U0.wind = prop('🌬️', 80);
+  if (T.mole) U0.mole = prop(moleModel());
+  if (T.thief) U0.hand = prop(handModel());
+  if (T.crow) U0.crow = prop(eagleModel());
+  if (T.gust) U0.wind = prop(windModel());
   if (T.ufo) { U0.ufo = ufoModel(); U0.ufo.visible = false; level3D.add(U0.ufo); }
 
   // the item, its shadow and the club
@@ -1782,26 +1889,49 @@ const HALF = { ring: .34, egg: .95, pizza: .28, donut: .42, bean: .78, sock: .5,
 function drawTrolls(U) {
   const c = realCup(), A = T.anim;
   if (U.lid) place(U.lid, c.x + (1 - T.lid) * 38, c.y, 2.5);
-  if (U.mole) { U.mole.visible = T.moleUp > .02; place(U.mole, c.x, c.y, -28 + T.moleUp * 52); faceCamera(U.mole); }
+  if (U.mole) {
+    // pops up out of the cup (it hides under the grass when it ducks) and sways
+    U.mole.visible = T.moleUp > .02;
+    place(U.mole, c.x, c.y, -56 + T.moleUp * 56);
+    turnToCamera(U.mole); U.mole.rotation.z = Math.sin(time * 7) * .1;
+  }
   if (U.hand) {
     const h = A && A.type === 'thief' ? Math.min(1, A.t / .35) : Math.max(0, (T.fx.hand || 0) / .6);
-    U.hand.visible = h > .02; place(U.hand, c.x, c.y, -34 + h * 66); faceCamera(U.hand);
-    U.hand.rotation.z = A && A.type === 'thief' && A.t > .7 ? -.9 : 0;
+    U.hand.visible = h > .02; place(U.hand, c.x, c.y, -80 + h * 80); turnToCamera(U.hand);
+    U.hand.rotation.z = A && A.type === 'thief' && A.t > .7 ? -.9 : Math.sin(time * 5) * .05;
   }
   if (U.crow) {
-    const L = T.fx.crow, mine = A && A.type === 'crow';
-    U.crow.visible = !!(mine || L);
-    if (mine) place(U.crow, A.cx, A.cy, A.ch + 22);
-    else if (L) { const k = 1 - L.t / 1.3; place(U.crow, L.x + L.dir * k * 600, L.y - k * 150, L.h + 22 + k * 260); }
-    if (U.crow.visible) { faceCamera(U.crow); U.crow.rotation.z = Math.sin(time * 18) * .25; }
+    const L = T.fx.crow, mine = A && A.type === 'crow', o = U.crow;
+    o.visible = !!(mine || L);
+    const px = o.position.x, pz = o.position.z;
+    if (mine) place(o, A.cx, A.cy, A.ch + 26);
+    else if (L) { const k = 1 - L.t / 1.3; place(o, L.x + L.dir * k * 600, L.y - k * 150, L.h + 26 + k * 260); }
+    if (o.visible) {
+      // turn toward where it is flying, and flap
+      const dx = o.position.x - px, dz = o.position.z - pz;
+      if (Math.hypot(dx, dz) > .5) {
+        const want = -Math.atan2(dz, dx);
+        let d = want - o.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
+        o.rotation.y += d * .25;
+      }
+      o.rotation.x = Math.sin(time * 3) * .08;
+      for (const w of o.userData.wings) w.rotation.x = w.userData.side * Math.sin(time * 16) * .7;
+    }
   }
   if (U.wind) {
-    const G = T.fx.gust;
-    U.wind.visible = !!G;
+    const G = T.fx.gust, o = U.wind;
+    o.visible = !!G;
     if (G) {
       const k = 1 - G.t / 1.3, back = 210 - k * 70;
-      place(U.wind, G.x - Math.cos(G.a) * back, G.y - Math.sin(G.a) * back, 55);
-      faceCamera(U.wind); U.wind.scale.setScalar(80 * (1 + .12 * Math.sin(time * 25)));
+      place(o, G.x - Math.cos(G.a) * back, G.y - Math.sin(G.a) * back, 60);
+      // half toward where it's blowing, half toward the camera so you see the face
+      const blow = Math.atan2(Math.cos(G.a), Math.sin(G.a)), cam = yawTo(o, camera.position.x, camera.position.z);
+      o.rotation.order = 'YXZ'; o.rotation.y = blow + Math.atan2(Math.sin(cam - blow), Math.cos(cam - blow)) * .5;
+      o.scale.setScalar(1.1 + .1 * Math.sin(time * 25));
+      for (const st of o.userData.streaks) {
+        const u = (time * 2.2 + st.userData.phase) % 1;
+        st.position.z = 34 + u * 70; st.material.opacity = .8 * (1 - u);
+      }
     }
   }
   if (U.ufo) {
@@ -1812,6 +1942,9 @@ function drawTrolls(U) {
       beam.visible = !!A.beam; beam.scale.y = A.uh; beam.position.y = -A.uh / 2;
     } else if (L) { const k = 1 - L.t / 1.2; place(U.ufo, L.x + k * 400, L.y - k * 250, L.h + k * 600); beam.visible = false; }
     U.ufo.rotation.y = time * 2.5;
+    // the pilot doesn't spin with the saucer: it keeps looking at you
+    const alien = U.ufo.userData.alien;
+    alien.rotation.y = yawTo(U.ufo, camera.position.x, camera.position.z) - U.ufo.rotation.y;
   }
 }
 
