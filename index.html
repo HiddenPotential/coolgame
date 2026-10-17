@@ -236,7 +236,7 @@ const $ = id => document.getElementById(id);
 // ---------- Things you hit ----------
 // damp: speed kept per 1/60 s. bounce: wall restitution. power: shot strength multiplier.
 const ITEMS = {
-  golf:   { emoji: '⛳', name: 'Golf Ball',    r: 13, bounce: .6,  damp: .988, power: 1,    desc: 'A real golf ball. Finally, something normal.' },
+  golf:   { emoji: '⛳', name: 'Golf Ball',    r: 13, bounce: .62, damp: .99,  roll: 110, power: 1,    desc: 'A real golf ball. Finally, something normal.' },
   ring:   { emoji: '🛟', name: 'Life Ring',    r: 16, bounce: .7,  damp: .985, power: 1,    desc: 'Floats! Water only slows it down.', floats: true },
   egg:    { emoji: '🥚', name: 'Raw Egg',      r: 14, bounce: .45, damp: .986, power: 1,    desc: 'Fragile. Smack a wall too hard and it cracks (+1 stroke).', fragile: true },
   pizza:  { emoji: '🍕', name: 'Pizza Slice',  r: 16, bounce: .25, damp: .962, power: 1.15, desc: 'Greasy and sticky. Barely slides. Use the speed pads.' },
@@ -732,8 +732,10 @@ function bounce(nx, ny, vn, rvx, rvy, ux, uy) {
   if (item.fragile && impact > 470 && !ball.air) { sfx.crack(); for (let i = 0; i < 20; i++) puff(ball.x, ball.y, i % 2 ? '#ffd23d' : '#fff', 200); penalty('crack'); return; }
   // super-bouncy items only gain energy on gentle hits, so they can't ping-pong forever
   const e = item.bounce > 1 && impact > 450 ? .8 : item.bounce;
-  ball.vx = rvx - (1 + e) * vn * nx + ux;
-  ball.vy = rvy - (1 + e) * vn * ny + uy;
+  // bounce back off the wall, and lose a little of the speed along it to friction
+  const tx = rvx - vn * nx, ty = rvy - vn * ny, grip = .93;
+  ball.vx = tx * grip - e * vn * nx + ux;
+  ball.vy = ty * grip - e * vn * ny + uy;
   // cap speed so the cheese can't go to space
   const s = Math.hypot(ball.vx, ball.vy);
   if (s > 1400) { ball.vx *= 1400 / s; ball.vy *= 1400 / s; }
@@ -793,7 +795,17 @@ function step(dt) {
   const wasAir = ball.air > 0;
   if (ball.air > 0) {
     ball.air -= dt;
-    if (ball.air <= 0) { ball.air = 0; tone(200, .08, 'sine', .15, 90); for (let i = 0; i < 6; i++) puff(ball.x, ball.y, '#e8f5d0'); }
+    if (ball.air <= 0) {
+      ball.air = 0;
+      // landing: bounce on with a lower, shorter hop (losing some speed to the ground),
+      // but plug in sand, and don't skip over water or holes
+      const soft = hole.sand.some(r => inRect(ball.x, ball.y, r));
+      const drop = soft || hole.water.some(r => inRect(ball.x, ball.y, r)) || pitAt(ball.x, ball.y);
+      if (soft) { ball.vx *= .3; ball.vy *= .3; }
+      if (!drop && ball.airT > .2) { ball.airT *= .42; ball.air = ball.airT; ball.vx *= .8; ball.vy *= .8; }
+      tone(ball.air ? 260 : 200, .07, 'sine', ball.air ? .1 : .15, 90);
+      for (let i = 0; i < 6; i++) puff(ball.x, ball.y, soft ? '#f2dca0' : '#e8f5d0');
+    }
   }
   const air = ball.air > 0;
   const sp0 = Math.hypot(ball.vx, ball.vy);
@@ -823,8 +835,10 @@ function step(dt) {
   if (inSand) damp = item.heavy ? .95 : .9;
   if (inWater && item.floats) damp = .955;
   const sNow = Math.hypot(ball.vx, ball.vy);
-  // exponential drag plus a little rolling friction so nothing slides forever
-  const f = Math.pow(damp, dt * 60) * (sNow > 0 ? Math.max(0, 1 - (air ? 0 : course.lowGrav ? 30 : 45) * dt / sNow) : 1);
+  // a little drag plus steady rolling resistance: a putt keeps its pace, then dies smoothly
+  // instead of creeping along forever (things weigh less on the moon, so they roll further)
+  const roll = air ? 0 : (item.roll || 45) * (course.lowGrav ? .65 : 1);
+  const f = Math.pow(damp, dt * 60) * (sNow > 0 ? Math.max(0, 1 - roll * dt / sNow) : 1);
   ball.vx *= f; ball.vy *= f;
 
   ball.x += ball.vx * dt; ball.y += ball.vy * dt;
@@ -879,11 +893,20 @@ function step(dt) {
   if (!air) for (const c of cups) {
     if (cupBlocked(c)) continue; // lid shut or mole up: it just rolls over
     const dx = c.x - ball.x, dy = c.y - ball.y, d = Math.hypot(dx, dy) || 1e-6;
-    if (d < 13 && sp < 520) { if (c.real) sink(); else startAnim('trap', { c }); return; }
-    if (d < 13 && sp >= 520 && !ball.lipped) { ball.lipped = true; toast(pick(LINES.lip), 1200); ball.vx += -dy / d * 60; ball.vy += dx / d * 60; }
-    if (d < 34 && sp < 380) { ball.vx += dx / d * 700 * dt; ball.vy += dy / d * 700 * dt; }
+    // it drops if it's slow enough for how centred it is: dead centre can take a firm putt,
+    // over the edge it has to be dying
+    const cap = 560 * (1 - .55 * (d / 15) ** 2);
+    if (d < 15 && sp < cap) { if (c.real) sink(); else startAnim('trap', { c }); return; }
+    if (d < 15 && !ball.lipped) { // lip out: the rim swings it round and slows it
+      ball.lipped = true;
+      if (sp >= 520) toast(pick(LINES.lip), 1200);
+      const nvx = ball.vx - dx / d * sp * .35, nvy = ball.vy - dy / d * sp * .35, ns = Math.hypot(nvx, nvy) || 1;
+      ball.vx = nvx / ns * sp * .8; ball.vy = nvy / ns * sp * .8;
+    }
+    // the green slopes gently down into the cup
+    if (d < 30 && sp < 300) { ball.vx += dx / d * 420 * (1 - d / 30) * dt; ball.vy += dy / d * 420 * (1 - d / 30) * dt; }
   }
-  if (!cups.some(c => Math.hypot(c.x - ball.x, c.y - ball.y) < 13)) ball.lipped = false;
+  if (!cups.some(c => Math.hypot(c.x - ball.x, c.y - ball.y) < 15)) ball.lipped = false;
 
   if (!air && !onBoost && sp < 7) {
     ball.vx = ball.vy = 0; ball.moving = false; ball.stopT = 0; ball.spin = 0;
@@ -2693,8 +2716,9 @@ function screenToField(e) {
 
 function liftOf() {
   if (!(ball.air > 0)) return 0;
-  const k = 1 - ball.air / ball.airT;
-  return Math.sin(k * Math.PI) * (course.lowGrav ? 120 : 75) * Math.min(1, ball.airT + .25);
+  // a real parabola: the peak height grows with the square of the hang time
+  const k = 1 - ball.air / ball.airT, g = course.lowGrav ? 520 : 740;
+  return g * ball.airT * ball.airT * k * (1 - k) / 2;
 }
 
 // flat things painted on the ground each frame: water ripples, aim guide, rings
