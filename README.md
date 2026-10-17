@@ -29,8 +29,15 @@ Bits of the course crack and fall away on their own, sometimes the ground cracks
 (or near the cup, where it's most annoying) the ground starts shaking under it: you have about a second to hit it out of there.
 Fall into a hole and it's +1 stroke, back to where you hit from. A wedge lob flies over holes. The tee and the cups never crumble.
 
+On top of that, every hole has two more surprises, once each:
+- **Teeter:** stop right next to the cup and the ball creeps up to the lip, wobbles with a drumroll... and rolls back out.
+- **Sloped green:** stop close to the cup and the green turns out to slope back toward where you hit from.
+
+Slide past the cup and the crowd groans. The 🏳️ Give up button refuses to let you quit (and hops somewhere else),
+and the score card counts how many times you tried.
+
 Every troll has a limit, so every hole can be finished, and the mercy rule ends a hole at 12 strokes.
-A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue.
+A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue (and gets meaner as the meter climbs).
 
 You hit a real 3D golf ball with:
 
