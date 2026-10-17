@@ -1,6 +1,6 @@
 # 🏆 Wacky Sports
 
-Sports, but nothing is a ball and nothing is a club.
+Sports in 3D, but nothing is a ball and nothing is a club.
 
 | Sport | What you do |
 | --- | --- |
@@ -21,8 +21,9 @@ Hit everything with:
 
 ## Play
 
-Open `index.html` in a browser. No build step, no dependencies.
+Open `index.html` in a browser. No build step. The 3D view uses [three.js](https://threejs.org/) from a CDN, so you need an internet connection.
 
 - Drag anywhere on the field to pull back and aim, then let go to swing.
 - Keys `1`–`4` pick a club, `M` mutes, `Esc` cancels a shot. 🏠 goes back to the sport picker.
+- `C` or the 🎥 button switches between the overview camera and one that follows the item.
 - Jump straight in with URL options, e.g. `?sport=bowling&hole=3` (sports: `golf`, `bowling`, `soccer`, `hoops`, `curling`).

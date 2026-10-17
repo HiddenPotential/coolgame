@@ -41,7 +41,7 @@
   canvas {
     display: block; width: 100%; height: auto; border-radius: 16px;
     box-shadow: 0 8px 0 #0f1a10, 0 14px 34px rgba(0,0,0,.45);
-    touch-action: none; cursor: crosshair; background: #4caf50;
+    touch-action: none; cursor: crosshair; background: #9fd8ff; aspect-ratio: 1000 / 640;
   }
   #toast {
     position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
@@ -51,6 +51,12 @@
     box-shadow: 0 3px 0 #c9b98f;
   }
   #toast.show { opacity: 1; }
+  #hint {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    background: rgba(25,35,25,.72); color: #fff; padding: 6px 14px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity .3s; white-space: nowrap;
+  }
+  #hint.show { opacity: 1; }
   .screen {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
     background: rgba(15,26,16,.45); border-radius: 16px; padding: 12px;
@@ -125,12 +131,13 @@
     <span class="stat"><span id="hParL">Par</span> <b id="hPar">3</b></span>
     <span class="stat"><span id="hStrokesL">Strokes</span> <b id="hStrokes">0</b></span>
     <span class="stat">Total <b id="hTotal">E</b></span>
-    <span><button id="menuBtn" title="Pick another sport">🏠</button> <button id="mute" title="Toggle sound (M)">🔊</button></span>
+    <span><button id="camBtn" title="Switch camera (C)">🎥 Overview</button> <button id="menuBtn" title="Pick another sport">🏠</button> <button id="mute" title="Toggle sound (M)">🔊</button></span>
   </div>
 
   <div id="wrap">
     <canvas id="c" width="1000" height="640"></canvas>
     <div id="toast"></div>
+    <div id="hint">Drag back to aim, let go to swing</div>
 
     <div class="screen show" id="titleScreen">
       <div class="card">
@@ -169,13 +176,19 @@
   <div id="clubs"></div>
   <div id="item"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (() => {
 "use strict";
+if (!window.THREE) { // the 3D engine comes from a CDN
+  document.getElementById('wrap').innerHTML = '<div class="card" style="margin:40px auto">Couldn\'t load the 3D engine. Check your internet connection and reload.</div>';
+  return;
+}
 
 const W = 1000, H = 640, B = 20; // field size and border thickness
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById('c');           // the 3D view
+const deco = document.createElement('canvas');          // flat effects painted onto the ground
+const ctx = deco.getContext('2d');
 const $ = id => document.getElementById(id);
 
 // ---------- Things you hit ----------
@@ -412,6 +425,7 @@ function prepLevel(i) {
   buildBackground();
   setItem(hole.items ? hole.items[0] : hole.item);
   placeBall(...spotFor(0));
+  build3D();
   updateHud();
 }
 
@@ -511,21 +525,20 @@ function selectClub(i) {
 }
 
 // ---------- Input ----------
-function toField(e) {
-  const r = canvas.getBoundingClientRect();
-  return [(e.clientX - r.left) * (W / r.width), (e.clientY - r.top) * (H / r.height)];
-}
+function toField(e) { return screenToField(e); }
 const MAX_PULL = 230, MAX_SPEED = 1050;
 canvas.addEventListener('pointerdown', e => {
   audio();
   if (state !== 'play' || ball.moving || shotActive || ball.gone || e.button === 2) { aim = null; return; }
+  const f = toField(e);
+  if (!f) return;
   canvas.setPointerCapture(e.pointerId);
-  const [x, y] = toField(e);
-  aim = { sx: x, sy: y, x, y };
+  aim = { sx: f[0], sy: f[1], x: f[0], y: f[1] };
 });
 canvas.addEventListener('pointermove', e => {
   if (!aim) return;
-  [aim.x, aim.y] = toField(e);
+  const f = toField(e);
+  if (f) [aim.x, aim.y] = f;
 });
 canvas.addEventListener('pointerup', () => {
   if (!aim) return;
@@ -544,6 +557,7 @@ window.addEventListener('keydown', e => {
   if (e.key >= '1' && e.key <= '4') selectClub(+e.key - 1);
   if (e.key === 'Escape') aim = null;
   if (e.key === 'm' || e.key === 'M') toggleMute();
+  if (e.key === 'c' || e.key === 'C') toggleCam();
 });
 function toggleMute() { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; }
 $('mute').onclick = toggleMute;
@@ -589,13 +603,13 @@ function checkGiveUp() {
 // ---------- Particles ----------
 function puff(x, y, color, speed = 120, life = .5, size = 4) {
   const a = Math.random() * Math.PI * 2, s = Math.random() * speed;
-  particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, color, size });
+  particles.push({ x, y, z: 4, vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: 60 + Math.random() * 160, life, max: life, color, size });
 }
 function confetti(x, y) {
   const cols = ['#ff7a3d', '#3db4ff', '#ffd23d', '#ff4fa3', '#7dff6a', '#ffffff'];
   for (let i = 0; i < 110; i++) {
     const a = Math.random() * Math.PI * 2, s = 150 + Math.random() * 450;
-    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1.6, max: 1.6, color: pick(cols),
+    particles.push({ x, y, z: 10, vx: Math.cos(a) * s * .7, vy: Math.sin(a) * s * .7, vz: 300 + Math.random() * 500, life: 1.8, max: 1.8, color: pick(cols),
                      size: 5 + Math.random() * 5, rect: true, rot: Math.random() * 6, vr: (Math.random() - .5) * 14 });
   }
 }
@@ -1132,53 +1146,6 @@ function paintIce(c, R) {
   c.fillStyle = g; c.fillRect(0, 0, W, H);
 }
 
-function drawBodies() {
-  for (const b of bodies) {
-    if (b.gone) continue;
-    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(b.x + 3, b.y + 5, b.r, b.r * .6, 0, 0, TAU); ctx.fill();
-    if (b.kind === 'stone') { ctx.strokeStyle = '#ffd23d'; ctx.lineWidth = 3; circle(b.x, b.y, b.r + 4); ctx.stroke(); }
-    ctx.globalAlpha = b.down ? .5 : 1;
-    emoji(b.emoji, b.x, b.y, b.r * (b.kind === 'pin' ? 2.3 : 2.2), b.down ? b.fall + Math.PI / 2 : 0);
-    ctx.globalAlpha = 1;
-  }
-}
-
-function drawKeeper(m) {
-  const r = moverRect(m, time), cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2, size = Math.max(r[2], r[3]) * 1.05;
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(cx + 4, cy + size * .32, size * .42, size * .16, 0, 0, TAU); ctx.fill();
-  emoji(m[8], cx, cy + Math.sin(time * 9 + m[7]) * 1.5, size);
-}
-
-function drawHoop() {
-  const [hx, hy] = hoopPos(), r = hole.hoop.r, bx = hx + r + 10;
-  ctx.fillStyle = 'rgba(0,0,0,.22)'; roundRect(bx + 5, hy - 46, 12, 96, 3); ctx.fill();
-  ctx.fillStyle = '#9aa0a6'; ctx.fillRect(hx + r - 2, hy - 4, 14, 8);
-  ctx.fillStyle = '#fafafa'; roundRect(bx, hy - 50, 12, 100, 3); ctx.fill();
-  ctx.strokeStyle = '#e04848'; ctx.lineWidth = 2; ctx.strokeRect(bx + 2, hy - 18, 8, 36);
-  ctx.fillStyle = 'rgba(0,0,0,.18)'; circle(hx + 5, hy + 9, r); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.3;
-  const sway = Math.sin(time * 3) * .15;
-  for (let k = 0; k < 14; k++) {
-    const a = k * TAU / 14;
-    ctx.beginPath(); ctx.moveTo(hx + Math.cos(a) * r, hy + Math.sin(a) * r);
-    ctx.lineTo(hx + Math.cos(a + .55 + sway) * r * .45, hy + 5 + Math.sin(a + .55 + sway) * r * .45); ctx.stroke();
-  }
-  circle(hx, hy + 5, r * .45); ctx.stroke();
-  ctx.strokeStyle = '#ff7a1a'; ctx.lineWidth = 4.5; circle(hx, hy, r); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(hx, hy, r - 1, Math.PI * 1.05, Math.PI * 1.5); ctx.stroke();
-}
-
-function drawFloaters() {
-  ctx.font = '700 30px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (const f of floaters) {
-    ctx.globalAlpha = Math.min(1, f.t * 2);
-    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.strokeText(f.text, f.x, f.y);
-    ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
-  }
-  ctx.globalAlpha = 1;
-}
-
 // where a lob will land (ignoring wobble and curve)
 function lobLanding(ang, power) {
   const club = CLUBS[clubIdx];
@@ -1191,8 +1158,7 @@ function lobLanding(ang, power) {
 // ---------- Drawing ----------
 // Render at the screen's pixel density so everything stays crisp on retina displays.
 const DPR = Math.min(2, window.devicePixelRatio || 1);
-canvas.width = W * DPR; canvas.height = H * DPR;
-// Everything that never moves (grass, sand, walls, cup) is painted once per hole into bg.
+// Everything flat that never moves (grass, sand, lines, cup) is painted once per level into bg and used as the floor.
 const bg = document.createElement('canvas');
 bg.width = W * DPR; bg.height = H * DPR;
 const bctx = bg.getContext('2d');
@@ -1205,13 +1171,6 @@ function roundRect(x, y, w, h, r, c = ctx, begin = true) {
   c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 function circle(x, y, r, c = ctx) { c.beginPath(); c.arc(x, y, r, 0, TAU); }
-function emoji(ch, x, y, size, rot = 0, sx = 1, sy = 1) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(sx, sy); ctx.rotate(rot);
-  ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
-  ctx.fillText(ch, 0, size * .05);
-  ctx.restore();
-}
 // seeded random so each hole's grass texture looks the same every time
 function rng(seed) {
   return () => {
@@ -1285,14 +1244,9 @@ function buildBackground() {
   else if (theme === 'ice') paintIce(c, R);
   else paintGrass(c, R);
   paintHazards(c, R);
-  for (const r of hole.walls) drawWall(r, c, theme === 'pitch' ? 'post' : 'wood');
-  for (const r of border) drawWall(r, c);
-  // brass corner bolts on the rail
-  for (const [bx, by] of [[10, 10], [W - 10, 10], [10, H - 10], [W - 10, H - 10]]) {
-    g = c.createRadialGradient(bx - 2, by - 2, 1, bx, by, 6);
-    g.addColorStop(0, '#fff3b0'); g.addColorStop(1, '#b8892d');
-    c.fillStyle = g; circle(bx, by, 5.5, c); c.fill();
-  }
+  // the rails are 3D boxes now; paint the floor under them dark
+  c.fillStyle = '#4a3423';
+  for (const r of border) c.fillRect(...r);
 }
 
 function paintGrass(c, R) {
@@ -1426,236 +1380,547 @@ function drawBoost(bz) {
   ctx.restore();
 }
 
-function drawFlag() {
-  const [cx, cy] = hole.cup, top = cy - 70;
-  // shadow of the pole on the grass
-  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 34, cy + 22); ctx.stroke();
-  const g = ctx.createLinearGradient(cx - 2, 0, cx + 2, 0);
-  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#b9b9b9');
-  ctx.strokeStyle = g; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, top); ctx.stroke(); ctx.lineCap = 'butt';
-  ctx.fillStyle = '#ffd23d'; circle(cx, top - 1, 3.5); ctx.fill();
-  // waving cloth
-  const len = 40, ht = 24, seg = 10;
-  ctx.beginPath(); ctx.moveTo(cx + 1.5, top + 2);
-  for (let i = 1; i <= seg; i++) { const u = i / seg; ctx.lineTo(cx + 1.5 + u * len, top + 2 + Math.sin(time * 5 - u * 4) * 4 * u); }
-  for (let i = seg; i >= 0; i--) { const u = i / seg; ctx.lineTo(cx + 1.5 + u * len, top + 2 + ht - u * 4 + Math.sin(time * 5 - u * 4) * 4 * u); }
-  ctx.closePath();
-  const fg = ctx.createLinearGradient(cx, top, cx + len, top + ht);
-  fg.addColorStop(0, '#ff5a4e'); fg.addColorStop(1, '#d92d4a');
-  ctx.fillStyle = fg; ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = '700 13px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(holeIdx + 1, cx + 18, top + 13 + Math.sin(time * 5 - 1.8) * 1.8);
-}
+// ---------- 3D ----------
+// The game logic stays flat (x across, y down the screen). Here that world is shown in 3D:
+// field x -> world X, field y -> world Z, and world Y is height.
+const wx = x => x - W / 2, wz = y => y - H / 2;
+const DS = 1.25; // resolution of the flat effects layer
+deco.width = W * DS; deco.height = H * DS;
 
-function drawBumper(bm) {
-  bm.flash = Math.max(0, (bm.flash || 0) - 1 / 60);
-  const s = bm[2] * (1 + bm.flash * .6), [x, y] = bm;
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 7, s, s * .9, 0, 0, TAU); ctx.fill();
-  let g = ctx.createRadialGradient(x - s * .3, y - s * .35, s * .1, x, y, s);
-  if (bm.flash) { g.addColorStop(0, '#fff6c4'); g.addColorStop(1, '#f5a400'); }
-  else { g.addColorStop(0, '#ff9cc8'); g.addColorStop(.7, '#ff4f9a'); g.addColorStop(1, '#c41870'); }
-  ctx.fillStyle = g; circle(x, y, s); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3; circle(x, y, s * .72); ctx.stroke();
-  g = ctx.createRadialGradient(x - s * .15, y - s * .2, 1, x, y, s * .5);
-  g.addColorStop(0, '#ffffff'); g.addColorStop(1, bm.flash ? '#ffe27a' : '#ffc4de');
-  ctx.fillStyle = g; circle(x, y, s * .48); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(x - s * .42, y - s * .5, s * .2, s * .11, -.6, 0, TAU); ctx.fill();
-}
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(DPR);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, W / H, 10, 7000);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x9a9488, .62);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, .5);
+sun.position.set(-380, 820, -300);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -720, right: 720, top: 620, bottom: -620, near: 100, far: 2200 });
+sun.shadow.bias = -.0006;
+scene.add(sun);
 
-function drawMill(m) {
-  ctx.save(); ctx.translate(m[0], m[1]);
-  const arms = millArms(m);
-  ctx.fillStyle = 'rgba(0,0,0,.22)';
-  for (const [ax, ay] of arms) {
-    ctx.save(); ctx.translate(5, 8); ctx.rotate(Math.atan2(ay, ax)); roundRect(8, -8, m[2] - 4, 16, 7); ctx.fill(); ctx.restore();
+const groundTex = new THREE.CanvasTexture(bg);
+groundTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+const decoTex = new THREE.CanvasTexture(deco);
+decoTex.anisotropy = groundTex.anisotropy;
+let level3D = null;      // everything built for the current level
+const sprites = new Map(); // bodies -> their sprites
+
+// ----- textures -----
+const texCache = new Map(), sharedTex = new Set([groundTex, decoTex]);
+function emojiTex(ch) {
+  if (!texCache.has(ch)) {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d');
+    x.font = '104px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#000';
+    x.fillText(ch, 64, 70);
+    const tx = new THREE.CanvasTexture(c); texCache.set(ch, tx); sharedTex.add(tx);
   }
-  arms.forEach(([ax, ay], k) => {
-    ctx.save(); ctx.rotate(Math.atan2(ay, ax));
-    const g = ctx.createLinearGradient(0, -8, 0, 8);
-    if (k % 2) { g.addColorStop(0, '#fffaf0'); g.addColorStop(1, '#d8cfbd'); }
-    else { g.addColorStop(0, '#ff6b5e'); g.addColorStop(1, '#c0302a'); }
-    ctx.fillStyle = g; roundRect(8, -8, m[2] - 4, 16, 7); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 1.5;
-    for (let t = 30; t < m[2] - 8; t += 20) { ctx.beginPath(); ctx.moveTo(t, -6); ctx.lineTo(t, 6); ctx.stroke(); }
-    ctx.restore();
+  return texCache.get(ch);
+}
+function textTex(text, big = false) {
+  const key = (big ? 'B:' : 'T:') + text;
+  if (!texCache.has(key)) {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+    const x = c.getContext('2d');
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    if (big) {
+      x.font = '700 92px Fredoka, sans-serif';
+      x.lineWidth = 16; x.strokeStyle = 'rgba(0,0,0,.5)'; x.strokeText(text, 256, 68);
+      x.fillStyle = '#ffd23d'; x.fillText(text, 256, 68);
+    } else {
+      x.font = '600 60px Fredoka, sans-serif';
+      const w = x.measureText(text).width + 50;
+      x.fillStyle = 'rgba(25,35,25,.75)'; roundRect(256 - w / 2, 24, w, 84, 42, x); x.fill();
+      x.fillStyle = '#fff'; x.fillText(text, 256, 68);
+    }
+    const tx = new THREE.CanvasTexture(c); texCache.set(key, tx); sharedTex.add(tx);
+  }
+  return texCache.get(key);
+}
+const shadowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const tx = new THREE.CanvasTexture(c); sharedTex.add(tx); return tx;
+})();
+const woodCanvas = (() => {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+  drawWall([-8, -8, 528, 112], c.getContext('2d'));
+  return c;
+})();
+const netTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 2;
+  for (let i = 0; i <= 64; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 64); x.moveTo(0, i); x.lineTo(64, i); x.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+})();
+
+// ----- builders -----
+const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+function mesh(geo, material, x, y, z, shadows = true) {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z);
+  m.castShadow = shadows; m.receiveShadow = true;
+  level3D.add(m);
+  return m;
+}
+function woodBox(r, h) {
+  const [x, y, w, d] = r, t = new THREE.CanvasTexture(woodCanvas);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if (w >= d) t.repeat.set(w / 260, 1); else { t.center.set(.5, .5); t.rotation = Math.PI / 2; t.repeat.set(d / 260, 1); }
+  return mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ map: t }), wx(x + w / 2), h / 2, wz(y + d / 2));
+}
+function sprite(ch, size, parent = scene) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(ch), transparent: true }));
+  s.scale.set(size, size, 1);
+  parent.add(s);
+  return s;
+}
+function blob(parent = scene) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 2;
+  parent.add(m);
+  return m;
+}
+function place(obj, x, y, h = 0) { obj.position.set(wx(x), h, wz(y)); }
+function setBlob(b, x, y, r, lift = 0) {
+  place(b, x + 4 + lift * .3, y + 5 + lift * .3, .7);
+  const s = r * 2.1 * (1 + lift / 200);
+  b.scale.set(s, s, 1);
+  b.material.opacity = Math.max(.25, 1 - lift / 250);
+}
+
+const THEMES = {
+  grass: { sky: 0x9fd8ff, floor: 0x4f9e4b, trees: true },
+  pitch: { sky: 0x8fcfff, floor: 0x3f8f3f, stands: true },
+  lane:  { sky: 0x17121c, floor: 0x241b17 },
+  court: { sky: 0x231d2b, floor: 0x3a2a1e, stands: true },
+  ice:   { sky: 0xcfe6ff, floor: 0xeaf4ff, snow: true },
+};
+
+function build3D() {
+  if (level3D) {
+    scene.remove(level3D);
+    level3D.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map && !sharedTex.has(o.material.map)) o.material.map.dispose(); });
+  }
+  for (const s of sprites.values()) { scene.remove(s.sprite); scene.remove(s.shadow); }
+  sprites.clear();
+  level3D = new THREE.Group(); scene.add(level3D);
+  const th = THEMES[hole.theme || 'grass'], R = rng(holeIdx * 31 + 7);
+  scene.background = new THREE.Color(th.sky);
+  scene.fog = new THREE.Fog(th.sky, 1600, 4200);
+
+  // surroundings, the field and the flat effects layer
+  const floor = mesh(new THREE.PlaneGeometry(9000, 9000), mat(th.floor), 0, -2, 0, false);
+  floor.rotation.x = -Math.PI / 2;
+  groundTex.needsUpdate = true;
+  const ground = mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: groundTex }), 0, 0, 0, false);
+  ground.rotation.x = -Math.PI / 2;
+  const decal = mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: decoTex, transparent: true, depthWrite: false }), 0, .5, 0, false);
+  decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; decal.receiveShadow = false;
+
+  // scenery around the field
+  const outside = (x, z) => Math.abs(x) > 560 || Math.abs(z) > 380;
+  if (th.trees) for (let i = 0; i < 46; i++) {
+    const x = (R() - .5) * 2000, z = (R() - .5) * 1500;
+    if (!outside(x, z)) continue;
+    const s = .7 + R() * .8, leaf = mat([0x2f8a3a, 0x3c9d3f, 0x27773a][i % 3]);
+    mesh(new THREE.CylinderGeometry(6 * s, 8 * s, 40 * s, 8), mat(0x7a5230), x, 20 * s, z);
+    mesh(new THREE.ConeGeometry(42 * s, 80 * s, 9), leaf, x, 70 * s, z);
+    mesh(new THREE.ConeGeometry(32 * s, 64 * s, 9), leaf, x, 108 * s, z);
+  }
+  if (th.snow) for (let i = 0; i < 30; i++) {
+    const x = (R() - .5) * 2000, z = (R() - .5) * 1500;
+    if (!outside(x, z)) continue;
+    const s = 30 + R() * 60, m = mesh(new THREE.SphereGeometry(s, 12, 8), mat(0xffffff), x, -s * .35, z);
+    m.scale.y = .6;
+  }
+  if (th.stands) {
+    const colors = [0xff7a3d, 0x3db4ff, 0xffd23d, 0xff4fa3, 0x7dff6a, 0xffffff];
+    for (const side of [-1, 1]) for (let row = 0; row < 4; row++) {
+      const z = side * (400 + row * 40);
+      mesh(new THREE.BoxGeometry(1100, 20 + row * 24, 40), mat(0x8a8f99), 0, 10 + row * 12, z);
+      for (let k = 0; k < 40; k++) if (R() < .7) {
+        const fan = mesh(new THREE.SphereGeometry(8, 8, 6), mat(colors[Math.floor(R() * colors.length)]), -520 + k * 26.5 + R() * 6, 26 + row * 24 + R() * 4, z);
+        fan.castShadow = false;
+      }
+    }
+  }
+
+  // walls and rails
+  for (const r of border) woodBox(r, 30);
+  if (hole.theme === 'pitch') {
+    const white = mat(0xffffff);
+    for (const r of hole.walls) mesh(new THREE.BoxGeometry(r[2], 6, r[3]), white, wx(r[0] + r[2] / 2), 3, wz(r[1] + r[3] / 2));
+    // goal frame and net
+    const [gx, gy, , gh] = hole.goal, px = wx(gx - 25), top = 78, z1 = wz(gy - 10), z2 = wz(gy + gh + 10), bx = wx(W - B - 2);
+    for (const z of [z1, z2]) mesh(new THREE.CylinderGeometry(4, 4, top, 10), white, px, top / 2, z);
+    const bar = mesh(new THREE.CylinderGeometry(4, 4, z2 - z1, 10), white, px, top, (z1 + z2) / 2); bar.rotation.x = Math.PI / 2;
+    const netMat = new THREE.MeshBasicMaterial({ map: netTex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    const nt = netTex.clone(); nt.needsUpdate = true; nt.repeat.set((z2 - z1) / 16, top / 16); netMat.map = nt;
+    const back = mesh(new THREE.PlaneGeometry(z2 - z1, top * .8), netMat, bx, top * .4, (z1 + z2) / 2, false); back.rotation.y = Math.PI / 2;
+    const depth = bx - px, roof = mesh(new THREE.PlaneGeometry(Math.hypot(depth, top * .2), z2 - z1), netMat, (px + bx) / 2, top * .9, (z1 + z2) / 2, false);
+    roof.rotation.x = -Math.PI / 2;
+    for (const z of [z1, z2]) { const sd = mesh(new THREE.PlaneGeometry(depth, top * .85), netMat, (px + bx) / 2, top * .42, z, false); }
+  } else for (const r of hole.walls) woodBox(r, 34);
+
+  // bumpers
+  level3D.userData.bumpers = hole.bumpers.map(bm => {
+    const g = new THREE.Group(); place(g, bm[0], bm[1]); level3D.add(g);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(bm[2], bm[2] * 1.05, 24, 32), mat(0xff4f9a, { emissive: 0x000000 }));
+    body.position.y = 12; body.castShadow = body.receiveShadow = true; g.add(body);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(bm[2] * .72, 3, 8, 32), mat(0xffffff));
+    rim.rotation.x = Math.PI / 2; rim.position.y = 24; g.add(rim);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(bm[2] * .46, bm[2] * .5, 30, 24), mat(0xffd6e8));
+    cap.position.y = 15; cap.castShadow = true; g.add(cap);
+    return { g, body, bm };
   });
-  const g = ctx.createRadialGradient(-5, -5, 2, 0, 0, 18);
-  g.addColorStop(0, '#c68b54'); g.addColorStop(1, '#5e3818');
-  ctx.fillStyle = g; circle(0, 0, 17); ctx.fill();
-  ctx.fillStyle = '#ffd23d'; circle(0, 0, 5.5); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.6)'; circle(-1.5, -1.5, 2); ctx.fill();
-  ctx.restore();
+
+  // windmills
+  level3D.userData.mills = hole.mills.map(m => {
+    const g = new THREE.Group(); place(g, m[0], m[1]); level3D.add(g);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(14, 18, 50, 16), mat(0x7a4a24)); post.position.y = 25; post.castShadow = true; g.add(post);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(9, 12, 8), mat(0xffd23d)); knob.position.y = 54; g.add(knob);
+    const blades = new THREE.Group(); g.add(blades);
+    const L = m[2] - 4;
+    for (let k = 0; k < 4; k++) {
+      const arm = new THREE.Group(); arm.rotation.y = -k * Math.PI / 2; blades.add(arm);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(L, 12, 16), mat(k % 2 ? 0xf5efe2 : 0xe04848));
+      b.position.set(8 + L / 2, 14, 0); b.castShadow = true; arm.add(b);
+    }
+    return { blades, m };
+  });
+
+  // moving drawers and characters
+  level3D.userData.movers = hole.movers.map(m => {
+    if (m[8]) {
+      const size = Math.max(m[2], m[3]) * 1.15;
+      const s = sprite(m[8], size, level3D); s.center.set(.5, .08);
+      return { m, s, sh: blob(level3D), size };
+    }
+    const box = woodBox(moverRect(m, 0), 32);
+    const s = sprite('🧦', 22, level3D);
+    return { m, box, s };
+  });
+
+  // golf flag
+  if (hole.cup) {
+    const [cx, cy] = hole.cup;
+    mesh(new THREE.CylinderGeometry(2.2, 2.2, 100, 8), mat(0xeeeeee), wx(cx), 50, wz(cy));
+    mesh(new THREE.SphereGeometry(4, 10, 8), mat(0xffd23d), wx(cx), 101, wz(cy));
+    const c = document.createElement('canvas'); c.width = 128; c.height = 80;
+    const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 128, 80);
+    g.addColorStop(0, '#ff5a4e'); g.addColorStop(1, '#d92d4a');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 80);
+    x.fillStyle = '#fff'; x.font = '700 50px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(holeIdx + 1, 60, 44);
+    const flag = mesh(new THREE.PlaneGeometry(46, 28, 12, 1), new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(c), side: THREE.DoubleSide }), wx(cx) + 23, 84, wz(cy));
+    level3D.userData.flag = flag;
+  }
+
+  // basketball hoop
+  if (hole.hoop) {
+    const g = new THREE.Group(); level3D.add(g);
+    const r = hole.hoop.r, white = mat(0xfafafa);
+    const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    add(new THREE.CylinderGeometry(5, 6, 110, 10), mat(0x555a60), r + 48, 55, 0);
+    add(new THREE.BoxGeometry(30, 6, 6), mat(0x555a60), r + 33, 100, 0);
+    const board = add(new THREE.BoxGeometry(6, 64, 104), white, r + 16, 90, 0);
+    add(new THREE.BoxGeometry(7, 26, 40), mat(0xe04848), r + 15.5, 80, 0).scale.set(1, 1, 1);
+    add(new THREE.BoxGeometry(7, 22, 34), white, r + 15, 80, 0);
+    add(new THREE.BoxGeometry(18, 4, 6), mat(0x9aa0a6), r + 6, 60, 0);
+    const rim = add(new THREE.TorusGeometry(r, 3, 10, 36), mat(0xff7a1a)); rim.rotation.x = Math.PI / 2; rim.position.y = 60;
+    const net = new THREE.Mesh(new THREE.CylinderGeometry(r, r * .55, 30, 18, 3, true),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: .8 }));
+    net.position.y = 44; g.add(net);
+    const sh = blob(g); sh.position.set(10, .7, 10); sh.scale.set(r * 2.6, r * 2.6, 1);
+    level3D.userData.hoop = g;
+  }
+
+  // the item, its shadow and the club
+  level3D.userData.ball = sprite(item.emoji, 32, level3D);
+  level3D.userData.ballShadow = blob(level3D);
+  level3D.userData.club = sprite('🥖', 40, level3D);
+  level3D.userData.swing = sprite('🥖', 44, level3D);
+  level3D.userData.pct = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTex('0%'), transparent: true, depthTest: false }));
+  level3D.userData.pct.scale.set(120, 30, 1); level3D.userData.pct.renderOrder = 5; level3D.add(level3D.userData.pct);
+  level3D.userData.floaters = new Map();
+  points3D.visible = true;
+  resize3D();
+  snapCamera = true;
 }
 
-function drawMover(m) {
-  if (m[8]) return drawKeeper(m);
-  const r = moverRect(m, time);
-  drawWall(r);
-  // drawer handle
-  const hx = r[0] + r[2] / 2, hy = r[1] + r[3] / 2;
-  ctx.fillStyle = '#5b3a1c'; roundRect(hx - 5, hy - 16, 10, 32, 5); ctx.fill();
-  ctx.fillStyle = '#e8c15a'; roundRect(hx - 3.5, hy - 14, 7, 28, 3.5); ctx.fill();
-  emoji('🧦', hx, r[1] + 16, 16);
+// ----- particles as a point cloud -----
+const MAXP = 800;
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 3), 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXP * 3), 3));
+const points3D = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 9, vertexColors: true, sizeAttenuation: true }));
+points3D.frustumCulled = false;
+scene.add(points3D);
+const colorCache = new Map();
+const col3 = c => { if (!colorCache.has(c)) colorCache.set(c, new THREE.Color(c)); return colorCache.get(c); };
+
+// ----- camera -----
+let camMode = 0, snapCamera = true;
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+function focusPoint() {
+  if (hole.cup) return hole.cup;
+  if (hole.goal) return [960, 320];
+  if (hole.hoop) return hoopPos();
+  if (hole.house) return hole.house;
+  if (hole.pins) return [800, 320];
+  return [W / 2, H / 2];
+}
+let followDir = [1, 0];
+function updateCamera(dt) {
+  let pos, look;
+  if (camMode === 0) {
+    const a = camera.aspect, dist = a < 1.45 ? 1450 / a : 1000;
+    pos = [0, dist * .82, dist * .62]; look = [0, 0, 30];
+  } else {
+    if (!aim && !shotActive && !ball.moving) {
+      const [tx, ty] = focusPoint(), dx = tx - ball.x, dy = ty - ball.y, d = Math.hypot(dx, dy) || 1;
+      followDir = [dx / d, dy / d];
+    }
+    const [fx, fy] = followDir, bx = ball.gone ? ball.last[0] : ball.x, by = ball.gone ? ball.last[1] : ball.y;
+    pos = [wx(bx - fx * 330), 250, wz(by - fy * 330)];
+    look = [wx(bx + fx * 180), 0, wz(by + fy * 180)];
+  }
+  const k = snapCamera ? 1 : 1 - Math.exp(-(aim ? 1.5 : 3.5) * dt);
+  if (!aim || snapCamera) { // hold still while aiming so the drag stays steady
+    camPos.lerp(new THREE.Vector3(...pos), k); camLook.lerp(new THREE.Vector3(...look), k);
+  }
+  snapCamera = false;
+  camera.position.copy(camPos);
+  if (shake > 0) camera.position.add(new THREE.Vector3((Math.random() - .5) * shake * 2, (Math.random() - .5) * shake * 2, 0));
+  camera.lookAt(camLook);
+}
+function toggleCam() {
+  camMode = 1 - camMode;
+  $('camBtn').textContent = camMode ? '🎥 Follow' : '🎥 Overview';
+  toast(camMode ? 'Camera: following the item' : 'Camera: overview', 1000);
 }
 
+function resize3D() {
+  const w = canvas.clientWidth || W, h = canvas.clientHeight || H;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', () => { resize3D(); });
+
+// ----- screen point -> spot on the field -----
+const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitV = new THREE.Vector3();
+function screenToField(e) {
+  const r = canvas.getBoundingClientRect();
+  raycaster.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), camera);
+  if (!raycaster.ray.intersectPlane(groundPlane, hitV)) return null;
+  return [hitV.x + W / 2, hitV.z + H / 2];
+}
+
+function liftOf() {
+  if (!(ball.air > 0)) return 0;
+  const k = 1 - ball.air / ball.airT;
+  return Math.sin(k * Math.PI) * (hole.lob ? 150 : 75) * Math.min(1, ball.airT + .25);
+}
+
+// flat things painted on the ground each frame: water ripples, aim guide, rings
+function drawDecals() {
+  ctx.setTransform(DS, 0, 0, DS, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  for (const r of hole.water) drawWaterSurface(r);
+  for (const bz of hole.boosts) drawBoost(bz);
+  for (const b of bodies) if (!b.gone && b.kind === 'stone') { ctx.strokeStyle = '#ffd23d'; ctx.lineWidth = 3; circle(b.x, b.y, b.r + 5); ctx.stroke(); }
+  if (state === 'play' && !ball.moving && !aim && !ball.gone && !shotActive) {
+    const t = (time * 1.2) % 1;
+    ctx.strokeStyle = `rgba(255,255,255,${(.8 * (1 - t)).toFixed(2)})`; ctx.lineWidth = 3;
+    circle(ball.x, ball.y, item.r + 6 + t * 16); ctx.stroke();
+  }
+  if (!ball.gone && ball.trail && !(ball.air > 0)) {
+    const tr = ball.trail;
+    for (let i = 0; i < tr.length; i++) {
+      const u = (i + 1) / tr.length;
+      ctx.fillStyle = `rgba(255,255,255,${(u * .25).toFixed(3)})`;
+      circle(tr[i][0], tr[i][1], item.r * (.3 + u * .45)); ctx.fill();
+    }
+  }
+  if (!ball.gone && item.floats && hole.water.some(r => inRect(ball.x, ball.y, r))) {
+    for (let k = 0; k < 2; k++) {
+      const t = (time * .8 + k * .5) % 1;
+      ctx.strokeStyle = `rgba(255,255,255,${(.6 * (1 - t)).toFixed(2)})`; ctx.lineWidth = 2;
+      circle(ball.x, ball.y, item.r + t * 24); ctx.stroke();
+    }
+  }
+  if (aim && state === 'play') drawAim();
+  for (const r of rings) {
+    const u = 1 - r.t / r.life;
+    ctx.strokeStyle = r.color; ctx.globalAlpha = 1 - u; ctx.lineWidth = r.width * (1 - u * .6) + 1;
+    circle(r.x, r.y, 6 + u * r.max); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  decoTex.needsUpdate = true;
+}
+
+// the aim guide on the ground (the club and % label are 3D sprites)
 function drawAim() {
   const { ang, power } = aimVec(), club = CLUBS[clubIdx];
   const landing = hole.lob ? lobLanding(ang, power) : null;
   const len = landing ? Math.max(20, landing[2] - item.r - 14) : 40 + power * 210, col = `hsl(${120 - power * 120},90%,55%)`;
   if (landing) {
     ctx.save(); ctx.translate(landing[0], landing[1]);
-    ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -time * 20;
+    ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -time * 20;
     circle(0, 0, item.r + 4); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.moveTo(0, -8); ctx.lineTo(0, 8); ctx.stroke();
     ctx.restore();
   }
-  // power ring around the item
   ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 6; circle(ball.x, ball.y, item.r + 12); ctx.stroke();
-  ctx.strokeStyle = col; ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 7; circle(ball.x, ball.y, item.r + 12); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = 6;
   ctx.beginPath(); ctx.arc(ball.x, ball.y, item.r + 12, -Math.PI / 2, -Math.PI / 2 + power * TAU); ctx.stroke();
   ctx.lineCap = 'butt';
-
   ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ang);
-  const path = u => { // returns [x, y] along the predicted wiggle
+  const path = u => {
     const x = item.r + 14 + u * len;
     if (club.wobble) return [x, Math.sin(x / 10 + time * 12) * 9 * u];
     if (club.chicken) return [x, Math.sin(u * Math.PI) * Math.sin(time * 4) * 38];
-    if (club.lob || hole.lob) return [x, -Math.sin(u * Math.PI) * (hole.lob ? 90 : 55) * power];
     return [x, 0];
   };
   const dots = Math.max(4, Math.floor(len / 14));
   for (let i = 0; i <= dots; i++) {
-    const u = i / dots, [px, py] = path(u), rad = 5 - u * 2.5;
+    const u = i / dots, [px, py] = path(u), rad = 6 - u * 3;
     ctx.fillStyle = 'rgba(0,0,0,.25)'; circle(px + 1.5, py + 2, rad); ctx.fill();
     ctx.fillStyle = i % 2 ? col : '#ffffff'; circle(px, py, rad); ctx.fill();
   }
   const [ex, ey] = path(1);
   ctx.translate(ex, ey);
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.moveTo(19.5, 2); ctx.lineTo(1.5, -9); ctx.lineTo(1.5, 13); ctx.fill();
-  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(0, -11); ctx.lineTo(0, 11); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(0, -12); ctx.lineTo(0, 12); ctx.fill();
   ctx.restore();
-
-  // the club, wound up behind the item
-  ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ang);
-  emoji(club.emoji, -item.r - 22 - power * 30, 0, 40, Math.PI / 2 * (club.chicken ? 0 : 1) - power * .5);
-  ctx.restore();
-
-  label(Math.round(power * 100) + '%', ball.x, ball.y - item.r - 30, 15);
 }
 
-function label(text, x, y, size = 15) {
-  ctx.font = `600 ${size}px Fredoka, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const w = ctx.measureText(text).width + 18, h = size + 10;
-  x = clamp(x, w / 2 + B + 4, W - B - 4 - w / 2);
-  ctx.fillStyle = 'rgba(25,35,25,.72)'; roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.fillText(text, x, y + 1);
-}
-
-function drawItem() {
-  if (ball.gone) return;
-  let lift = 0, scale = 1;
-  if (ball.air > 0) { const k = 1 - ball.air / ball.airT; lift = Math.sin(k * Math.PI) * 50 * Math.min(1, ball.airT); scale = 1 + lift / 80; }
-  if (state === 'sinking') { sinkAnim += 1 / 60; scale = Math.max(0, 1 - sinkAnim * 2.5); ball.x += (hole.cup[0] - ball.x) * .2; ball.y += (hole.cup[1] - ball.y) * .2; }
-  if (scale <= 0) return;
-
-  // motion trail
-  const tr = ball.trail || [];
-  for (let i = 0; i < tr.length; i++) {
-    const u = (i + 1) / tr.length;
-    ctx.fillStyle = `rgba(255,255,255,${(u * .28).toFixed(3)})`;
-    circle(tr[i][0], tr[i][1] - lift * u, item.r * (.35 + u * .5)); ctx.fill();
-  }
-
-  // soft shadow that spreads out while airborne
-  const sr = item.r * (1 + lift / 120);
-  const sx = ball.x + 3 + lift * .35, sy = ball.y + 7 + lift * .45;
-  const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
-  g.addColorStop(0, `rgba(0,0,0,${(.38 - lift / 300).toFixed(3)})`); g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(sx, sy, sr, sr * .6, 0, 0, TAU); ctx.fill();
-
-  const inWater = item.floats && hole.water.some(r => inRect(ball.x, ball.y, r));
-  if (inWater) { // ripples around the swimming duck
-    for (let k = 0; k < 2; k++) {
-      const t = (time * .8 + k * .5) % 1;
-      ctx.strokeStyle = `rgba(255,255,255,${(.6 * (1 - t)).toFixed(2)})`; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(ball.x, ball.y + 6, item.r + t * 22, (item.r + t * 22) * .55, 0, 0, TAU); ctx.stroke();
-    }
-  }
-  const bob = inWater ? Math.sin(time * 6) * 2 : 0;
-  const q = ball.squash || 0;
-  emoji(item.emoji, ball.x, ball.y - lift + bob, item.r * 2.2 * scale,
-        item.hops || item.floats ? 0 : ball.rot, 1 + q * .25, 1 - q * .25);
-}
+function syncSprite(s, x, y, size, h) { place(s, x, y, h); s.scale.set(size, size, 1); }
 
 function draw() {
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-  if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-  ctx.drawImage(bg, 0, 0, W, H);
+  const U = level3D.userData;
+  drawDecals();
 
-  for (const r of hole.water) drawWaterSurface(r);
-  for (const bz of hole.boosts) drawBoost(bz);
-  for (const m of hole.movers) drawMover(m);
-  for (const bm of hole.bumpers) drawBumper(bm);
-  for (const m of hole.mills) drawMill(m);
-  drawBodies();
-  if (hole.hoop) drawHoop();
+  for (const { g, body, bm } of U.bumpers) {
+    bm.flash = Math.max(0, (bm.flash || 0) - 1 / 60);
+    const s = 1 + bm.flash * .8;
+    g.scale.set(s, 1 + bm.flash * 1.5, s);
+    body.material.emissive.setHex(bm.flash ? 0xffb000 : 0x000000);
+  }
+  for (const { blades, m } of U.mills) blades.rotation.y = -m[3] * time;
+  for (const o of U.movers) {
+    const r = moverRect(o.m, time), cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2;
+    if (o.box) { place(o.box, cx, cy, 16); place(o.s, cx, cy, 44); }
+    else { place(o.s, cx, cy, Math.abs(Math.sin(time * 9 + o.m[7])) * 3); setBlob(o.sh, cx, cy, o.size * .4); }
+  }
+  if (U.flag) {
+    const p = U.flag.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) { const u = (p.getX(i) + 23) / 46; p.setZ(i, Math.sin(time * 5 - u * 4) * 5 * u); }
+    p.needsUpdate = true;
+  }
+  if (U.hoop) { const [hx, hy] = hoopPos(); place(U.hoop, hx, hy); }
 
-  // "ready" pulse under a resting item
-  if (state === 'play' && !ball.moving && !aim && !ball.gone && !shotActive) {
-    const t = (time * 1.2) % 1;
-    ctx.strokeStyle = `rgba(255,255,255,${(.7 * (1 - t)).toFixed(2)})`; ctx.lineWidth = 2.5;
-    circle(ball.x, ball.y, item.r + 6 + t * 16); ctx.stroke();
+  // knocked-around things
+  const seen = new Set();
+  for (const b of bodies) {
+    if (b.gone) continue;
+    seen.add(b);
+    let o = sprites.get(b);
+    if (!o) { o = { sprite: sprite(b.emoji, 10), shadow: blob() }; sprites.set(b, o); }
+    const size = b.r * (b.kind === 'pin' ? 3 : 2.6);
+    if (b.down) {
+      syncSprite(o.sprite, b.x, b.y, size, size * .3);
+      o.sprite.material.rotation = b.fall + Math.PI / 2; o.sprite.material.opacity = .55;
+    } else {
+      syncSprite(o.sprite, b.x, b.y, size, size * .45);
+      o.sprite.material.rotation = 0; o.sprite.material.opacity = 1;
+    }
+    setBlob(o.shadow, b.x, b.y, b.r);
+  }
+  for (const [b, o] of sprites) if (!seen.has(b)) { scene.remove(o.sprite); scene.remove(o.shadow); sprites.delete(b); }
+
+  // the item
+  const bs = U.ball, bsh = U.ballShadow;
+  let lift = liftOf(), scale = 1;
+  if (state === 'sinking') { sinkAnim += 1 / 60; scale = Math.max(0, 1 - sinkAnim * 2.5); ball.x += (hole.cup[0] - ball.x) * .2; ball.y += (hole.cup[1] - ball.y) * .2; lift = -sinkAnim * 30; }
+  bs.visible = bsh.visible = !ball.gone && scale > 0;
+  if (bs.visible) {
+    bs.material.map = emojiTex(item.emoji);
+    const inWater = item.floats && hole.water.some(r => inRect(ball.x, ball.y, r));
+    const size = item.r * 2.7 * scale, q = ball.squash || 0;
+    place(bs, ball.x, ball.y, size * .46 + lift + (inWater ? Math.sin(time * 6) * 2 - 4 : 0));
+    bs.scale.set(size * (1 + q * .25), size * (1 - q * .25), 1);
+    bs.material.rotation = item.hops || item.floats ? 0 : -ball.rot;
+    setBlob(bsh, ball.x, ball.y, item.r * scale, Math.max(0, lift));
   }
 
-  if (aim && state === 'play') drawAim();
-
-  // swing follow-through
+  // the club winding up, the swing, and the power label
+  const club = CLUBS[clubIdx];
+  U.club.visible = !!(aim && state === 'play');
+  U.pct.visible = U.club.visible;
+  if (U.club.visible) {
+    const { ang, power } = aimVec(), d = item.r + 24 + power * 34;
+    U.club.material.map = emojiTex(club.emoji);
+    place(U.club, ball.x - Math.cos(ang) * d, ball.y - Math.sin(ang) * d, 26 + power * 10);
+    U.club.material.rotation = (club.chicken ? 0 : Math.PI / 2) - power * .6;
+    U.pct.material.map = textTex(Math.round(power * 100) + '%');
+    place(U.pct, ball.x, ball.y, item.r * 2.3 + 34);
+  }
+  U.swing.visible = !!swing;
   if (swing) {
     swing.t += 1 / 60;
-    if (swing.t > .35) swing = null;
+    const k = swing.t / .35;
+    if (k > 1) { swing = null; U.swing.visible = false; }
     else {
-      const k = swing.t / .35;
-      ctx.globalAlpha = 1 - k;
-      const bx = ball.last[0] - Math.cos(swing.ang) * (30 - k * 40), by = ball.last[1] - Math.sin(swing.ang) * (30 - k * 40);
-      emoji(swing.club.emoji, bx, by, 42, swing.ang + Math.PI / 2 - k * 1.5);
-      ctx.globalAlpha = 1;
+      U.swing.material.map = emojiTex(swing.club.emoji);
+      U.swing.material.opacity = 1 - k;
+      place(U.swing, ball.last[0] - Math.cos(swing.ang) * (30 - k * 40), ball.last[1] - Math.sin(swing.ang) * (30 - k * 40), 26);
+      U.swing.material.rotation = Math.PI / 2 - k * 2;
     }
   }
 
-  // the flag goes in front of the item only when the item is above (behind) it
-  const behindFlag = hole.cup && ball.y < hole.cup[1];
-  if (hole.cup && !behindFlag) drawFlag();
-  drawItem();
-  if (behindFlag) drawFlag();
-
-  for (const r of rings) {
-    const u = 1 - r.t / r.life;
-    ctx.strokeStyle = r.color; ctx.globalAlpha = 1 - u; ctx.lineWidth = r.width * (1 - u * .6);
-    circle(r.x, r.y, 6 + u * r.max); ctx.stroke();
+  // floating "+2" scores
+  for (const f of floaters) {
+    let s = U.floaters.get(f);
+    if (!s) {
+      s = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTex(f.text, true), transparent: true, depthTest: false }));
+      s.scale.set(160, 40, 1); s.renderOrder = 6; level3D.add(s); U.floaters.set(f, s);
+    }
+    s.material.opacity = Math.min(1, f.t * 2);
+    place(s, f.x, f.y + 30, 70 + (1.3 - f.t) * 60);
   }
-  for (const p of particles) {
-    ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * 1.5));
-    ctx.fillStyle = p.color;
-    if (p.rect) {
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, Math.cos(p.rot * 1.7));
-      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2); ctx.restore();
-    } else { circle(p.x, p.y, p.size / 2 * (.5 + .5 * p.life / p.max)); ctx.fill(); }
-  }
-  ctx.globalAlpha = 1;
+  for (const [f, s] of U.floaters) if (!floaters.includes(f)) { level3D.remove(s); U.floaters.delete(f); }
 
-  drawFloaters();
-  if (state === 'play' && !ball.moving && !aim && strokes === 0)
-    label('drag back to aim, let go to swing', ball.x, ball.y + item.r + 34, 14);
+  // particles
+  const pos = pGeo.attributes.position.array, colr = pGeo.attributes.color.array;
+  const n = Math.min(MAXP, particles.length);
+  for (let i = 0; i < n; i++) {
+    const p = particles[i], c = col3(p.color);
+    pos[i * 3] = wx(p.x); pos[i * 3 + 1] = (p.z || 0) + 2; pos[i * 3 + 2] = wz(p.y);
+    colr[i * 3] = c.r; colr[i * 3 + 1] = c.g; colr[i * 3 + 2] = c.b;
+  }
+  pGeo.setDrawRange(0, n);
+  pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = true;
+
+  $('hint').classList.toggle('show', state === 'play' && !ball.moving && !aim && strokes === 0 && !ball.gone);
+  updateCamera(drawDt);
+  renderer.render(scene, camera);
 }
 
 // ---------- Loop ----------
-let lastT = performance.now();
+let lastT = performance.now(), drawDt = 1 / 60;
 function frame(now) {
-  let dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  let dt = Math.min(.05, (now - lastT) / 1000); lastT = now; drawDt = dt;
   time += dt;
   if (state === 'play') {
     const n = 6, h = dt / n;
@@ -1668,6 +1933,8 @@ function frame(now) {
   }
   for (const p of particles) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    p.z += p.vz * dt; p.vz -= (p.rect ? 500 : 900) * dt;
+    if (p.z < 0) { p.z = 0; p.vz *= -.3; }
     const k = Math.pow(p.rect ? .9 : .94, dt * 60); p.vx *= k; p.vy *= k;
     if (p.rect) p.rot += p.vr * dt;
   }
@@ -1691,6 +1958,7 @@ function frame(now) {
 $('introBtn').onclick = () => { show(null); state = 'play'; };
 $('againBtn').onclick = () => startSport(sport.key);
 $('menuBtn').onclick = showMenu;
+$('camBtn').onclick = toggleCam;
 $('menuBtn2').onclick = showMenu;
 
 buildClubs();
