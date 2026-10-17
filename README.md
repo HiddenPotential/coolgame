@@ -36,7 +36,7 @@ On top of that, every hole has two more surprises, once each:
 Slide past the cup and the crowd groans. The 🏳️ Give up button refuses to let you quit (and hops somewhere else),
 and the score card counts how many times you tried.
 
-Every troll has a limit, so every hole can be finished, and the mercy rule ends a hole at 12 strokes.
+Every troll has a limit, so every hole can be finished. There is no mercy rule: a hole doesn't end until the ball is in.
 Each course has its own chiptune, made in the browser with Web Audio, that speeds up as your rage climbs and goes quiet while the ball teeters.
 A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue (and gets meaner as the meter climbs).
 
