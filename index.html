@@ -6,7 +6,7 @@
 <title>Wacky Rage Golf</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="description" content="Nine holes of 3D mini golf where the course is out to get you.">
 <style>
   :root {
@@ -22,7 +22,7 @@
   body {
     background: radial-gradient(circle at 50% 0%, #2f4a33, var(--bg) 70%);
     color: var(--ink);
-    font-family: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    font-family: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
     display: flex; flex-direction: column; align-items: center;
     padding: 10px 16px 16px;
     user-select: none; -webkit-user-select: none;
@@ -30,22 +30,22 @@
   #hud {
     width: 100%; max-width: 1000px;
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;
-    background: var(--panel); border-radius: 14px; padding: 8px 14px;
+    background: var(--panel); border-radius: 0; padding: 8px 14px;
     box-shadow: 0 4px 0 #c9b98f; margin-bottom: 10px;
   }
   #hud .title { font-weight: 900; font-size: 20px; color: var(--accent); letter-spacing: .5px; }
   #hud .stat { font-size: 15px; }
   #hud .stat b { font-size: 18px; }
-  #hud button { font: inherit; border: 0; background: #eadfc3; border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  #hud button { font: inherit; border: 0; background: #eadfc3; border-radius: 0; padding: 4px 10px; cursor: pointer; }
   #wrap { position: relative; width: 100%; max-width: min(1000px, calc((100vh - 200px) * 1.5625)); min-width: min(100%, 320px); }
   canvas {
-    display: block; width: 100%; height: auto; border-radius: 16px;
+    display: block; width: 100%; height: auto; border-radius: 0;
     box-shadow: 0 8px 0 #0f1a10, 0 14px 34px rgba(0,0,0,.45);
     touch-action: none; cursor: crosshair; background: #9fd8ff; aspect-ratio: 1000 / 640;
   }
   #toast {
     position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
-    background: rgba(253,246,227,.95); padding: 8px 16px; border-radius: 999px;
+    background: rgba(253,246,227,.95); padding: 8px 16px; border-radius: 0;
     font-weight: 700; font-size: 16px; pointer-events: none;
     opacity: 0; transition: opacity .25s; max-width: 90%; text-align: center;
     box-shadow: 0 3px 0 #c9b98f;
@@ -53,20 +53,20 @@
   #toast.show { opacity: 1; }
   #hint {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-    background: rgba(25,35,25,.72); color: #fff; padding: 6px 14px; border-radius: 999px;
+    background: rgba(25,35,25,.72); color: #fff; padding: 6px 14px; border-radius: 0;
     font-size: 14px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity .3s; white-space: nowrap;
   }
   #hint.show { opacity: 1; }
   #mini {
     position: absolute; right: 12px; bottom: 12px; width: 180px; height: auto; aspect-ratio: 1000 / 640;
-    border-radius: 10px; border: 3px solid rgba(253,246,227,.9); box-shadow: 0 3px 10px rgba(0,0,0,.35);
+    border-radius: 0; border: 3px solid rgba(253,246,227,.9); box-shadow: 0 3px 10px rgba(0,0,0,.35);
     pointer-events: none; opacity: 0; transition: opacity .3s; background: #222;
   }
   #mini.show { opacity: .95; }
   .card.wide { max-width: 760px; }
   .courses { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 14px; position: relative; }
   .course {
-    font: inherit; border: 0; cursor: pointer; border-radius: 16px; padding: 14px 10px 12px; color: #2b2118;
+    font: inherit; border: 0; cursor: pointer; border-radius: 0; padding: 14px 10px 12px; color: #2b2118;
     display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 5px 0 rgba(0,0,0,.18);
     transition: transform .12s, box-shadow .12s;
   }
@@ -79,19 +79,19 @@
   .course b { font-size: 18px; }
   .course .d { font-size: 12.5px; line-height: 1.3; opacity: .85; }
   .course .holes { display: flex; gap: 4px; margin-top: 6px; }
-  .course .holes span { width: 16px; height: 16px; border-radius: 50%; font-size: 9px; line-height: 16px; background: rgba(255,255,255,.55); color: #2b2118; font-weight: 700; }
+  .course .holes span { width: 16px; height: 16px; border-radius: 0; font-size: 9px; line-height: 16px; background: rgba(255,255,255,.55); color: #2b2118; font-weight: 700; }
   .course .best { font-size: 12px; font-weight: 700; margin-top: 4px; }
   @media (max-width: 640px) { #mini { display: none; } }
   .screen {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-    background: rgba(15,26,16,.45); border-radius: 16px; padding: 12px;
+    background: rgba(15,26,16,.45); border-radius: 0; padding: 12px;
     backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
   }
   .screen.show .card { animation: pop .35s cubic-bezier(.2,1.6,.4,1); }
-  @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes pop { from { transform: scale(.85); } to { transform: none; } }
   .screen.show { display: flex; }
   .card {
-    background: var(--panel); border-radius: 18px; padding: 20px 26px; max-width: 560px; width: 100%;
+    background: var(--panel); border-radius: 0; padding: 20px 26px; max-width: 560px; width: 100%;
     text-align: center; box-shadow: 0 6px 0 #c9b98f; max-height: 100%; overflow: auto;
   }
   .card h1 { margin: 0 0 6px; font-size: 38px; color: var(--accent); }
@@ -100,7 +100,7 @@
   .big-emoji { font-size: 64px; line-height: 1.1; }
   .btn {
     font: inherit; font-weight: 800; font-size: 20px; border: 0; cursor: pointer;
-    background: var(--accent); color: white; padding: 10px 26px; border-radius: 12px;
+    background: var(--accent); color: white; padding: 10px 26px; border-radius: 0;
     box-shadow: 0 4px 0 #c4501d; margin-top: 10px;
   }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c4501d; }
@@ -115,7 +115,7 @@
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
   }
   .club {
-    font: inherit; border: 3px solid transparent; background: var(--panel); border-radius: 12px;
+    font: inherit; border: 3px solid transparent; background: var(--panel); border-radius: 0;
     padding: 6px 8px; cursor: pointer; text-align: left; display: flex; gap: 8px; align-items: center;
     box-shadow: 0 4px 0 #c9b98f;
   }
@@ -125,7 +125,7 @@
   .club { transition: transform .12s, box-shadow .12s; }
   .club:hover { transform: translateY(-2px); }
   .club.sel { border-color: var(--accent); background: #fff1e0; transform: translateY(-3px); box-shadow: 0 7px 0 #e0a070; }
-  .club kbd { font-size: 11px; background: #eadfc3; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  .club kbd { font-size: 11px; background: #eadfc3; border-radius: 0; padding: 0 4px; margin-left: 4px; }
   #item {
     width: 100%; max-width: 1000px; margin-top: 10px; color: #e9f5e0; font-size: 14px; text-align: center;
   }
@@ -135,6 +135,22 @@
     .card h1 { font-size: 30px; }
     #hud .title { font-size: 16px; }
   }
+  /* ---- pixel look: square corners, chunky outlines, pixel fonts ---- */
+  #hud .title, .card h1, .card h2, .btn, .course b, .club .n { font-family: "Press Start 2P", monospace; letter-spacing: 0; }
+  #hud .title { font-size: 12px; }
+  .card h1 { font-size: 24px; line-height: 1.5; }
+  .card h2 { font-size: 15px; line-height: 1.6; }
+  .btn { font-size: 12px; padding: 13px 18px; line-height: 1.4; }
+  .course b { font-size: 10px; line-height: 1.6; }
+  .club .n { font-size: 10px; line-height: 1.8; }
+  #hud, .card, .club, .btn, #toast, .course, #hint { border: 3px solid #2b2118; }
+  .club.sel { border-color: var(--accent); }
+  #hud button { border: 2px solid #2b2118; font-family: "Pixelify Sans", sans-serif; }
+  canvas, #mini { image-rendering: pixelated; image-rendering: crisp-edges; }
+  canvas { border: 4px solid #2b2118; }
+  .screen { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(15,26,16,.55); }
+  .screen.show .card { animation: pop .3s steps(3); }
+  svg.e { shape-rendering: crispEdges; }
 </style>
 </head>
 <body>
@@ -145,7 +161,7 @@
     <span class="stat">Strokes <b id="hStrokes">0</b></span>
     <span class="stat">Total <b id="hTotal">E</b></span>
     <span class="stat">🤬 Rage <b id="hRage">0%</b></span>
-    <span><button id="camBtn" title="Switch camera (C)">🎥 Overview</button> <button id="menuBtn" title="Course map">🗺️</button> <button id="mute" title="Toggle sound (M)">🔊</button></span>
+    <span><button id="pixBtn" title="Pixel look on/off (P)">👾 Pixel</button> <button id="camBtn" title="Switch camera (C)">🎥 Overview</button> <button id="menuBtn" title="Course map">🗺️</button> <button id="mute" title="Toggle sound (M)">🔊</button></span>
   </div>
 
   <div id="wrap">
@@ -157,14 +173,14 @@
       <div class="card">
         <div class="big-emoji">⛳😡✋</div>
         <h1>Wacky Rage Golf</h1>
-        <p>Nine holes of 3D mini golf. Every single one of them is out to get you.</p>
-        <p class="small">Drag anywhere to pull back and aim, release to swing.<br>Pick a club with the buttons below or keys 1–4. C switches the camera.</p>
+        <p>Three courses of pixel 3D mini golf. Every single hole is out to get you.</p>
+        <p class="small">Drag anywhere to pull back and aim, release to swing.<br>Pick a club with the buttons below or keys 1–4. C switches the camera, P the pixel look.</p>
         <button class="btn" id="startBtn">Tee off (if you dare)</button>
         <p class="small" id="bestLine"></p>
       </div>
     </div>
 
-    <canvas id="mini" width="400" height="256" title="Minimap"></canvas>
+    <canvas id="mini" width="150" height="96" title="Minimap"></canvas>
 
     <div class="screen" id="mapScreen">
       <div class="card wide">
@@ -628,6 +644,7 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Escape') aim = null;
   if (e.key === 'm' || e.key === 'M') toggleMute();
   if (e.key === 'c' || e.key === 'C') toggleCam();
+  if (e.key === 'p' || e.key === 'P') togglePixel();
 });
 function toggleMute() { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; }
 $('mute').onclick = toggleMute;
@@ -1353,7 +1370,7 @@ const wx = x => x - W / 2, wz = y => y - H / 2;
 const DS = 1.25; // resolution of the flat effects layer
 deco.width = W * DS; deco.height = H * DS;
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
 renderer.setPixelRatio(DPR);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1395,11 +1412,11 @@ function textTex(text, big = false) {
     const x = c.getContext('2d');
     x.textAlign = 'center'; x.textBaseline = 'middle';
     if (big) {
-      x.font = '700 92px Fredoka, sans-serif';
+      x.font = '700 92px "Pixelify Sans", sans-serif';
       x.lineWidth = 16; x.strokeStyle = 'rgba(0,0,0,.5)'; x.strokeText(text, 256, 68);
       x.fillStyle = '#ffd23d'; x.fillText(text, 256, 68);
     } else {
-      x.font = '600 60px Fredoka, sans-serif';
+      x.font = '600 60px "Pixelify Sans", sans-serif';
       const w = x.measureText(text).width + 50;
       x.fillStyle = 'rgba(25,35,25,.75)'; roundRect(256 - w / 2, 24, w, 84, 42, x); x.fill();
       x.fillStyle = '#fff'; x.fillText(text, 256, 68);
@@ -1620,7 +1637,7 @@ function itemModel(key) {
   const outer = new THREE.Group(), inner = new THREE.Group();
   outer.add(inner);
   (MODELS[key] || MODELS.orange)(inner);
-  return outer;
+  return toonify(outer);
 }
 
 // ----- emoji with thickness: a stack of cut-out slices, solid at the front and back -----
@@ -1663,7 +1680,7 @@ function clubModel(key) {
     blade.rotation.z = key === 'wedge' ? .55 : .25;
   }
   hands.userData.key = key;
-  return hands;
+  return toonify(hands);
 }
 // put the hands above and behind the item, aimed at ang, swung back by `swingAng` (negative = backswing)
 function poseClub(o, bx, by, ang, swingAng) {
@@ -1924,8 +1941,8 @@ function tvModel() {
   part(g, new THREE.BoxGeometry(60, 40, 6), shiny(0x1c1f24, 80), 0, 0, 0);
   const tex = paintTex(256, 160, (x, w, h) => {
     x.fillStyle = '#0d2a14'; x.fillRect(0, 0, w, h);
-    x.fillStyle = '#7dff6a'; x.font = '700 70px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('VAR', w / 2, 70);
-    x.font = '600 26px Fredoka, sans-serif'; x.fillStyle = '#ffffff'; x.fillText('CHECKING…', w / 2, 128);
+    x.fillStyle = '#7dff6a'; x.font = '700 70px "Pixelify Sans", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('VAR', w / 2, 70);
+    x.font = '600 26px "Pixelify Sans", sans-serif'; x.fillStyle = '#ffffff'; x.fillText('CHECKING…', w / 2, 128);
     x.fillStyle = '#ff3b3b'; circle(26, 24, 9, x); x.fill();
   });
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(54, 34), new THREE.MeshBasicMaterial({ map: tex }));
@@ -2048,10 +2065,10 @@ function build3D() {
 
   // surroundings, the field and the flat effects layer
   const floor = mesh(new THREE.PlaneGeometry(9000, 9000), mat(th.floor), 0, -2, 0, false);
-  floor.rotation.x = -Math.PI / 2;
+  floor.rotation.x = -Math.PI / 2; floor.userData.noToon = true;
   groundTex.needsUpdate = true;
   const ground = mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: groundTex }), 0, 0, 0, false);
-  ground.rotation.x = -Math.PI / 2;
+  ground.rotation.x = -Math.PI / 2; ground.userData.noToon = true;
   const decal = mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: decoTex, transparent: true, depthWrite: false }), 0, .5, 0, false);
   decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; decal.receiveShadow = false;
 
@@ -2112,7 +2129,7 @@ function build3D() {
     const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 128, 80);
     g.addColorStop(0, '#ff5a4e'); g.addColorStop(1, '#d92d4a');
     x.fillStyle = g; x.fillRect(0, 0, 128, 80);
-    x.fillStyle = '#fff'; x.font = '700 50px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(holeIdx + 1, 60, 44);
+    x.fillStyle = '#fff'; x.font = '700 50px "Pixelify Sans", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(holeIdx + 1, 60, 44);
     const tex = new THREE.CanvasTexture(c);
     level3D.userData.flags = cups.map(() => makeFlag(tex));
   }
@@ -2120,7 +2137,7 @@ function build3D() {
   if (T.lidOn) {
     const lt = paintTex(128, 128, (x, w, h) => {
       x.fillStyle = '#9aa1a8'; x.fillRect(0, 0, w, h); x.fillStyle = '#d62828'; x.fillRect(0, 44, w, 40);
-      x.fillStyle = '#fff'; x.font = '700 30px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('CLOSED', 64, 66);
+      x.fillStyle = '#fff'; x.font = '700 30px "Pixelify Sans", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('CLOSED', 64, 66);
     });
     const metal = mat(0x8f969e);
     U0.lid = mesh(new THREE.CylinderGeometry(20, 20, 4, 28), [metal, mat(0xffffff, { map: lt }), metal], 0, 2, 0);
@@ -2139,6 +2156,7 @@ function build3D() {
   level3D.userData.pct.scale.set(120, 30, 1); level3D.userData.pct.renderOrder = 5; level3D.add(level3D.userData.pct);
   level3D.userData.floaters = new Map();
   points3D.visible = true;
+  toonify(level3D);
   resize3D();
   snapCamera = true;
 }
@@ -2193,8 +2211,75 @@ function resize3D() {
   const w = canvas.clientWidth || W, h = canvas.clientHeight || H;
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
+  // the pixel look renders the scene this many CSS pixels per "pixel"
+  const px = Math.max(1, Math.round(w / 330));
+  pixelRT.setSize(Math.round(w / px), Math.round(h / px));
+  postMat.uniforms.res.value.set(Math.round(w / px), Math.round(h / px));
 }
 window.addEventListener('resize', () => { resize3D(); });
+
+// ----- the pixel look -----
+// Render the scene small, then blow it up with hard edges, a limited palette, a bit of
+// ordered dithering, and dark outlines wherever the picture changes sharply.
+let pixelOn = (() => { try { return localStorage.getItem('wackyPixel') !== 'off'; } catch (e) { return true; } })();
+const pixelRT = new THREE.WebGLRenderTarget(330, 211, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+const postMat = new THREE.ShaderMaterial({
+  uniforms: { tex: { value: pixelRT.texture }, res: { value: new THREE.Vector2(330, 211) }, levels: { value: 9 } },
+  depthTest: false, depthWrite: false,
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `
+    uniform sampler2D tex; uniform vec2 res; uniform float levels; varying vec2 vUv;
+    float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+    float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+    float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+    void main() {
+      vec2 px = floor(vUv * res), uv = (px + 0.5) / res, o = 1.0 / res;
+      vec3 c = texture2D(tex, uv).rgb;
+      float l = lum(c);
+      float e = abs(l - lum(texture2D(tex, uv + vec2(o.x, 0.0)).rgb)) + abs(l - lum(texture2D(tex, uv + vec2(0.0, o.y)).rgb))
+              + abs(l - lum(texture2D(tex, uv - vec2(o.x, 0.0)).rgb)) + abs(l - lum(texture2D(tex, uv - vec2(0.0, o.y)).rgb));
+      c *= 1.0 - smoothstep(0.16, 0.42, e) * 0.5;
+      c = floor(c * levels + 0.22 + bayer4(px) * 0.56) / levels;
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+});
+const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+function renderPixel() {
+  if (!pixelOn) { renderer.render(scene, camera); return; }
+  renderer.setRenderTarget(pixelRT); renderer.render(scene, camera);
+  renderer.setRenderTarget(null); renderer.render(postScene, postCam);
+}
+function togglePixel() {
+  pixelOn = !pixelOn;
+  try { localStorage.setItem('wackyPixel', pixelOn ? 'on' : 'off'); } catch (e) {}
+  $('pixBtn').textContent = pixelOn ? '👾 Pixel' : '✨ Smooth';
+  toast(pixelOn ? 'Pixel look on' : 'Smooth look on', 1000);
+}
+
+// toon shading: models light in a few flat bands instead of smooth gradients
+const toonRamp = (() => {
+  const t = new THREE.DataTexture(new Uint8Array([110, 175, 235, 255]), 4, 1, THREE.LuminanceFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true;
+  return t;
+})();
+const toonCache = new WeakMap();
+function toonMat(m) {
+  if (!(m.isMeshLambertMaterial || m.isMeshPhongMaterial)) return m;
+  if (!toonCache.has(m)) {
+    const t = new THREE.MeshToonMaterial({ color: m.color, map: m.map, gradientMap: toonRamp, transparent: m.transparent, opacity: m.opacity, side: m.side,
+      emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0) });
+    toonCache.set(m, t);
+  }
+  return toonCache.get(m);
+}
+function toonify(root) {
+  root.traverse(o => {
+    if (!o.isMesh || o.userData.noToon) return;
+    o.material = Array.isArray(o.material) ? o.material.map(toonMat) : toonMat(o.material);
+  });
+  return root;
+}
 
 // ----- screen point -> spot on the field -----
 const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitV = new THREE.Vector3();
@@ -2475,7 +2560,7 @@ function draw() {
 
   $('hint').classList.toggle('show', state === 'play' && !ball.moving && !aim && strokes === 0 && !ball.gone);
   updateCamera(drawDt);
-  renderer.render(scene, camera);
+  renderPixel();
 }
 
 // ---------- Minimap ----------
@@ -2500,8 +2585,8 @@ function drawMini() {
     mctx.fillStyle = '#ff4f4f'; mctx.fillRect(c.x, c.y - 52, 26, 18); mctx.fillStyle = '#fff'; mctx.fillRect(c.x - 2, c.y - 52, 4, 52);
   }
   if (!ball.gone && !ball.hidden) {
-    mctx.fillStyle = '#ffd23d'; mctx.strokeStyle = '#000'; mctx.lineWidth = 6;
-    circle(ball.x, ball.y, 20, mctx); mctx.fill(); mctx.stroke();
+    mctx.fillStyle = '#ffd23d'; mctx.strokeStyle = '#000'; mctx.lineWidth = 10;
+    circle(ball.x, ball.y, 26, mctx); mctx.fill(); mctx.stroke();
   }
 }
 
@@ -2546,8 +2631,10 @@ $('againBtn').onclick = () => startGame();
 $('mapBtn2').onclick = showMap;
 $('menuBtn').onclick = showMap;
 $('camBtn').onclick = toggleCam;
+$('pixBtn').onclick = togglePixel;
 
 buildClubs();
+$('pixBtn').textContent = pixelOn ? '👾 Pixel' : '✨ Smooth';
 course = COURSES[0];
 prepLevel(0); // hole 1 sits behind the title screen
 showMenu();

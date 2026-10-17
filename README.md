@@ -1,6 +1,6 @@
 # 😡 Wacky Rage Golf
 
-Three courses of 3D mini golf, nine holes each. Every single hole is out to get you.
+Three courses of pixel-art 3D mini golf, nine holes each. Every single hole is out to get you.
 
 Pick a course on the course map (🗺️):
 
@@ -41,5 +41,5 @@ You hit 3D models of a watermelon, orange, egg, coconut, bagel, jelly, pineapple
 Open `index.html` in a browser. No build step. The 3D view uses [three.js](https://threejs.org/) from a CDN, so you need an internet connection.
 
 - Drag anywhere on the course to pull back and aim, then let go to swing.
-- Keys `1`–`4` pick a club, `M` mutes, `Esc` cancels a shot, `C` (or 🎥) switches between the overview and a camera that follows the item.
+- Keys `1`–`4` pick a club, `M` mutes, `Esc` cancels a shot, `C` (or 🎥) switches between the overview and a camera that follows the item, `P` (or 👾) turns the pixel look on and off.
 - Jump straight to a hole with `?course=moon&hole=5` (courses: `meadow`, `desert`, `moon`).
