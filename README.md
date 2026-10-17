@@ -1,6 +1,14 @@
 # 😡 Wacky Rage Golf
 
-Nine holes of 3D mini golf. Every single one of them is out to get you.
+Three courses of 3D mini golf, nine holes each. Every single hole is out to get you.
+
+Pick a course on the course map (🗺️):
+
+- 🌳 **Meadow Links**: green grass, ponds, and a hand that lives in the cup.
+- 🌵 **Dune Desert**: quicksand, cactus bumpers, camels crossing, vultures, sandstorms, mirage cups and a sinkhole.
+- 🌙 **Moon Base**: low gravity (lobs float, things roll further), black holes that suck your item in, asteroids, the space void, and the UFO is home.
+
+A minimap in the corner shows the whole hole. The holes of Meadow Links:
 
 | # | Hole | What it does to you |
 | --- | --- | --- |
@@ -13,6 +21,8 @@ Nine holes of 3D mini golf. Every single one of them is out to get you.
 | 7 | Whack-a-Mole | Someone lives in the cup and pops up to swat your item away. |
 | 8 | Moving Day | "Pin position updated." The hole moves when you get close. |
 | 9 | The Final Insult | A UFO beams your item out of the cup and flies it back to the tee. Plus wind. Plus the bird. |
+
+On top of these, the desert and moon add **VAR review**, which watches your putt go in and then disallows it.
 
 Every troll has a limit, so every hole can be finished, and the mercy rule ends a hole at 12 strokes.
 A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue.
@@ -32,4 +42,4 @@ Open `index.html` in a browser. No build step. The 3D view uses [three.js](https
 
 - Drag anywhere on the course to pull back and aim, then let go to swing.
 - Keys `1`–`4` pick a club, `M` mutes, `Esc` cancels a shot, `C` (or 🎥) switches between the overview and a camera that follows the item.
-- Jump straight to a hole with `?hole=5`.
+- Jump straight to a hole with `?course=moon&hole=5` (courses: `meadow`, `desert`, `moon`).

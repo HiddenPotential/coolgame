@@ -57,6 +57,31 @@
     font-size: 14px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity .3s; white-space: nowrap;
   }
   #hint.show { opacity: 1; }
+  #mini {
+    position: absolute; right: 12px; bottom: 12px; width: 180px; height: auto; aspect-ratio: 1000 / 640;
+    border-radius: 10px; border: 3px solid rgba(253,246,227,.9); box-shadow: 0 3px 10px rgba(0,0,0,.35);
+    pointer-events: none; opacity: 0; transition: opacity .3s; background: #222;
+  }
+  #mini.show { opacity: .95; }
+  .card.wide { max-width: 760px; }
+  .courses { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 14px; position: relative; }
+  .course {
+    font: inherit; border: 0; cursor: pointer; border-radius: 16px; padding: 14px 10px 12px; color: #2b2118;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 5px 0 rgba(0,0,0,.18);
+    transition: transform .12s, box-shadow .12s;
+  }
+  .course:hover { transform: translateY(-4px); box-shadow: 0 9px 0 rgba(0,0,0,.18); }
+  .course:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .course.grass { background: linear-gradient(160deg, #c9f0b8, #8fd17d); }
+  .course.desert { background: linear-gradient(160deg, #ffe3b0, #f0b56a); }
+  .course.moon { background: linear-gradient(160deg, #3a3f5c, #15172a); color: #eef0ff; }
+  .course .e { font-size: 46px; line-height: 1.1; }
+  .course b { font-size: 18px; }
+  .course .d { font-size: 12.5px; line-height: 1.3; opacity: .85; }
+  .course .holes { display: flex; gap: 4px; margin-top: 6px; }
+  .course .holes span { width: 16px; height: 16px; border-radius: 50%; font-size: 9px; line-height: 16px; background: rgba(255,255,255,.55); color: #2b2118; font-weight: 700; }
+  .course .best { font-size: 12px; font-weight: 700; margin-top: 4px; }
+  @media (max-width: 640px) { #mini { display: none; } }
   .screen {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
     background: rgba(15,26,16,.45); border-radius: 16px; padding: 12px;
@@ -120,7 +145,7 @@
     <span class="stat">Strokes <b id="hStrokes">0</b></span>
     <span class="stat">Total <b id="hTotal">E</b></span>
     <span class="stat">🤬 Rage <b id="hRage">0%</b></span>
-    <span><button id="camBtn" title="Switch camera (C)">🎥 Overview</button> <button id="menuBtn" title="Back to the title screen">🏠</button> <button id="mute" title="Toggle sound (M)">🔊</button></span>
+    <span><button id="camBtn" title="Switch camera (C)">🎥 Overview</button> <button id="menuBtn" title="Course map">🗺️</button> <button id="mute" title="Toggle sound (M)">🔊</button></span>
   </div>
 
   <div id="wrap">
@@ -136,6 +161,16 @@
         <p class="small">Drag anywhere to pull back and aim, release to swing.<br>Pick a club with the buttons below or keys 1–4. C switches the camera.</p>
         <button class="btn" id="startBtn">Tee off (if you dare)</button>
         <p class="small" id="bestLine"></p>
+      </div>
+    </div>
+
+    <canvas id="mini" width="400" height="256" title="Minimap"></canvas>
+
+    <div class="screen" id="mapScreen">
+      <div class="card wide">
+        <h2>🗺️ Pick a course</h2>
+        <p class="small">Three courses, nine holes each. All of them hate you.</p>
+        <div class="courses" id="courseList"></div>
       </div>
     </div>
 
@@ -158,6 +193,7 @@
         <p id="endLine"></p>
         <table class="score" id="scoreTable"></table>
         <button class="btn" id="againBtn">Play again</button>
+        <button class="btn alt" id="mapBtn2">Course map</button>
 
       </div>
     </div>
@@ -253,6 +289,100 @@ const HOLES = [
     tip: 'Last hole. Surely nothing weird will happen.' },
 ];
 
+// pulls: [x, y, radius, strength] drag the item in, and if it reaches the middle it's gone (+1 stroke)
+const DESERT = [
+  { name: 'Mirage', item: 'orange', par: 3, start: [120, 320], cup: [860, 320], fakes: [[860, 150], [860, 490]],
+    bumpers: [[470, 200, 22], [470, 440, 22], [620, 320, 22]],
+    tip: 'Out here, not every cup is real.' },
+  { name: 'Cactus Alley', item: 'coconut', par: 3, start: [100, 320], cup: [880, 320],
+    bumpers: [[300, 200, 22], [300, 440, 22], [450, 320, 22], [600, 200, 22], [600, 440, 22], [750, 320, 22]],
+    water: [[380, 30, 140, 110], [380, 500, 140, 110]],
+    trolls: { crow: 2, crowDrops: [[450, 85], [450, 555], [180, 130]] },
+    tip: 'Vultures circle anything that stops near the cup.' },
+  { name: 'Quicksand Crossing', item: 'bagel', par: 3, start: [100, 320], cup: [880, 320],
+    water: [[260, 20, 200, 250], [260, 370, 200, 250], [600, 20, 160, 220], [600, 420, 160, 200]],
+    trolls: { gust: 2 },
+    tip: 'Sandstorm forecast: 0%.' },
+  { name: 'Camel Crossing', item: 'pineapple', par: 3, start: [120, 320], cup: [860, 320],
+    movers: [[370, 40, 70, 60, 0, 480, 3.2, 0, '🐫'], [600, 520, 70, 60, 0, -460, 2.6, 1, '🐫']],
+    trolls: { relocate: [[860, 140], [700, 520]] },
+    tip: 'Camels have right of way. So does the hole, apparently.' },
+  { name: 'The Sinkhole', item: 'egg', par: 3, start: [120, 520], cup: [840, 160],
+    pulls: [[480, 330, 135, 900]],
+    trolls: { flee: 2, fleeZone: [700, 60, 240, 240] },
+    tip: 'Keep away from the middle. Also, the cup is shy.' },
+  { name: 'Oasis', item: 'jelly', par: 3, start: [120, 320], cup: [860, 320],
+    water: [[400, 180, 220, 280]],
+    trolls: { mole: true },
+    tip: 'Something lives under this cup.' },
+  { name: 'Dune Run', item: 'burger', par: 4, start: [100, 540], cup: [880, 100],
+    boosts: [[230, 440, 160, 100, -.55], [560, 260, 160, 100, -.55]],
+    walls: [[440, 20, 24, 240], [720, 380, 24, 240]],
+    trolls: { lid: true },
+    tip: 'Ride the dunes. The lid slams on slow putts.' },
+  { name: 'The Pyramid', item: 'cheese', par: 4, start: [120, 320], cup: [800, 320],
+    walls: [[680, 200, 24, 240], [680, 200, 200, 24], [680, 416, 200, 24]],
+    bumpers: [[420, 320, 24]],
+    trolls: { var: 1 },
+    tip: 'Enter the pyramid from the back. The officials are watching.' },
+  { name: 'Sandstorm Finale', item: 'pumpkin', par: 5, start: [100, 540], cup: [880, 110],
+    water: [[300, 380, 240, 240]], bumpers: [[470, 180, 22], [640, 430, 22]],
+    walls: [[640, 260, 340, 24]],
+    trolls: { thief: 1, gust: 1, crow: 1, crowDrops: [[420, 500], [180, 180]] },
+    tip: 'Last hole in the desert. What could go wrong.' },
+];
+
+const MOON = [
+  { name: 'One Small Putt', item: 'orange', par: 2, start: [160, 320], cup: [600, 320],
+    sand: [[330, 110, 130, 100], [330, 430, 130, 100]],
+    trolls: { var: 1 },
+    tip: 'Low gravity. One small putt for you, one giant review for VAR.' },
+  { name: 'Black Hole Sun', item: 'coconut', par: 3, start: [120, 320], cup: [860, 320],
+    pulls: [[490, 320, 145, 950]],
+    trolls: { flee: 2, fleeZone: [720, 110, 220, 420] },
+    tip: "Don't get too close to the middle." },
+  { name: 'Crater Field', item: 'bagel', par: 3, start: [100, 320], cup: [880, 320],
+    sand: [[240, 50, 140, 140], [240, 450, 140, 140], [470, 245, 140, 150], [700, 50, 140, 140], [700, 450, 140, 140]],
+    trolls: { relocate: [[880, 120], [880, 520]] },
+    tip: 'Moon dust is sticky. The pin is restless.' },
+  { name: 'Asteroid Belt', item: 'melon', par: 3, start: [120, 320], cup: [870, 320],
+    bumpers: [[350, 140, 28], [350, 500, 28], [500, 320, 30], [650, 160, 26], [650, 480, 26]],
+    movers: [[560, 30, 60, 50, 0, 520, 3, 0, '🛰️']],
+    trolls: { gust: 2 },
+    tip: 'Mind the satellite. Solar wind is "unlikely".' },
+  { name: 'Event Horizon', item: 'pineapple', par: 3, start: [120, 320], cup: [860, 320],
+    pulls: [[500, 150, 140, 950], [500, 490, 140, 950]],
+    trolls: { lid: true },
+    tip: 'Thread the gap between two black holes. Firmly.' },
+  { name: 'Wormhole Cups', item: 'jelly', par: 3, start: [120, 320], cup: [850, 320], fakes: [[850, 120], [850, 520], [640, 320]],
+    water: [[380, 40, 120, 180], [380, 420, 120, 180]],
+    tip: 'Four cups. Three of them are wormholes.' },
+  { name: 'Orbit', item: 'sock', par: 4, start: [120, 320], cup: [880, 320],
+    pulls: [[470, 320, 150, 850]], walls: [[720, 160, 24, 320]],
+    trolls: { thief: 1 },
+    tip: 'Swing around the black hole and come in from the side.' },
+  { name: 'Docking Bay', item: 'butter', par: 4, start: [100, 320], cup: [880, 320],
+    walls: [[250, 20, 24, 250], [250, 370, 24, 250]],
+    movers: [[480, 30, 30, 250, 0, 330, 2.4, 0], [700, 30, 30, 250, 0, 330, 2, 1.5]],
+    trolls: { mole: true },
+    tip: 'Airlocks cycle every few seconds. A space hamster lives in the cup.' },
+  { name: 'Final Frontier', item: 'pumpkin', par: 5, start: [100, 540], cup: [880, 110],
+    water: [[300, 390, 240, 230]], pulls: [[400, 150, 95, 900]], bumpers: [[780, 420, 26]],
+    walls: [[640, 270, 340, 24]],
+    trolls: { ufo: 1, var: 1, gust: 1 },
+    tip: 'The last hole in the universe. They are watching.' },
+];
+
+// themes: how a course looks, and lowGrav makes things float longer and roll further
+const COURSES = [
+  { key: 'meadow', name: 'Meadow Links', emoji: '🌳', theme: 'grass', holes: HOLES,
+    blurb: 'Green grass, ponds, and a hand that lives in the cup.' },
+  { key: 'desert', name: 'Dune Desert', emoji: '🌵', theme: 'desert', holes: DESERT,
+    blurb: 'Quicksand, cactus bumpers, camels and vultures.' },
+  { key: 'moon', name: 'Moon Base', emoji: '🌙', theme: 'moon', holes: MOON, lowGrav: true,
+    blurb: 'Low gravity, black holes, and the UFO is home.' },
+];
+
 // ---------- More things to hit ----------
 Object.assign(ITEMS, {
   pumpkin: { emoji: '🎃', name: 'Pumpkin',       r: 20, bounce: .3,  damp: .988, power: .95, mass: 3,   desc: 'Heavy and roundish. Built for bowling.' },
@@ -279,6 +409,13 @@ const LINES = {
   hop:    ['The bean jumped. Nobody told it to.', 'Boing. (The bean moved.)', 'The bean has made a choice.'],
   duckwater: ['The life ring is having a lovely float.', 'Bob bob. Unbothered.'],
   lip:    ['Lipped out! Too fast.', 'So close. Slow down a bit.'],
+  quicksand: ['Swallowed by quicksand. +1 stroke', 'Glug. The desert keeps it. +1 stroke'],
+  void:   ['Lost to the void of space. +1 stroke', 'It is orbiting forever now. +1 stroke'],
+  pull:   ['🕳️ Spaghettified. +1 stroke', '🕳️ The black hole says thanks. +1 stroke'],
+  sinkhole: ['🌀 The sinkhole ate it. +1 stroke', '🌀 Gone. The sand just swallowed it. +1 stroke'],
+  sandstorm: ['🌪️ Sandstorm! Forecast was 0%.', '🌪️ Oh look, a sudden sandstorm.'],
+  solarwind: ['☀️ Solar wind! Nobody saw that coming.', '☀️ A solar flare nudged it. Rude.'],
+  var:    ['❌ Disallowed: the ball was too round.', '❌ No hole. VAR spotted a blade of grass offside.', '❌ Overturned on review. Take it again.'],
   thief:  ['✋ Nope.', '✋ Not today.', '✋ The hole has rejected your offering.'],
   ufo:    ["👽 We'll be taking that.", '👽 For science.'],
   crow:   ['🦅 Ooh, shiny! Mine now.', '🦅 Yoink.'],
@@ -355,8 +492,8 @@ function moverVel(m, t) {
 }
 
 function prepLevel(i) {
-  holeIdx = i; hole = HOLES[i];
-  for (const k of ['walls', 'water', 'sand', 'boosts', 'bumpers', 'mills', 'movers']) hole[k] = hole[k] || [];
+  holeIdx = i; hole = course.holes[i];
+  for (const k of ['walls', 'water', 'sand', 'boosts', 'bumpers', 'mills', 'movers', 'pulls']) hole[k] = hole[k] || [];
   strokes = 0; particles = []; rings = []; floaters = []; aim = null; swing = null;
   buildBackground();
   setItem(hole.item);
@@ -368,7 +505,7 @@ function prepLevel(i) {
 
 function loadHole(i) {
   prepLevel(i);
-  $('introHole').textContent = `Hole ${i + 1} of ${HOLES.length} · Par ${hole.par}`;
+  $('introHole').textContent = `${course.emoji} ${course.name} · Hole ${i + 1} of ${course.holes.length} · Par ${hole.par}`;
   $('introName').textContent = hole.name;
   $('introEmoji').textContent = item.emoji;
   $('introWhat').innerHTML = `Today you'll be hitting a <b>${item.name}</b>.`;
@@ -386,17 +523,32 @@ function placeBall(x, y) {
            hopped: true, scale: 1, trail: [], r: item.r, mass: item.mass || (item.heavy ? 3 : 1) };
 }
 
-function startGame() {
+function startGame(key = course.key) {
+  course = COURSES.find(c => c.key === key);
   scores = []; rage = 0; peakRage = 0;
   loadHole(0);
 }
-const BEST_KEY = 'wackyRageGolfBest';
-function getBest() { try { const v = localStorage.getItem(BEST_KEY); return v === null ? null : +v; } catch (e) { return null; } }
+const bestKey = k => k === 'meadow' ? 'wackyRageGolfBest' : 'wackyRageGolfBest_' + k;
+function getBest(k = course.key) { try { const v = localStorage.getItem(bestKey(k)); return v === null ? null : +v; } catch (e) { return null; } }
 function showMenu() {
   state = 'title'; aim = null;
-  const best = getBest();
-  $('bestLine').textContent = best === null ? '' : `Your best round: ${best} strokes`;
   show('titleScreen');
+}
+// the course map: one card per course, with its holes and your best round
+function showMap() {
+  state = 'title'; aim = null;
+  const el = $('courseList'); el.innerHTML = '';
+  for (const c of COURSES) {
+    const best = getBest(c.key), par = c.holes.reduce((a, h) => a + h.par, 0);
+    const b = document.createElement('button');
+    b.className = 'course ' + c.theme;
+    b.innerHTML = `<span class="e">${c.emoji}</span><b>${c.name}</b><span class="d">${c.blurb}</span>` +
+      `<span class="holes">${c.holes.map((h, i) => `<span title="${h.name}">${i + 1}</span>`).join('')}</span>` +
+      `<span class="best">Par ${par} · ${best === null ? 'Not played yet' : `Best: ${best}`}</span>`;
+    b.onclick = () => { audio(); startGame(c.key); };
+    el.appendChild(b);
+  }
+  show('mapScreen');
 }
 
 function show(id) {
@@ -404,14 +556,14 @@ function show(id) {
 }
 
 function totalVsPar() {
-  let d = 0; scores.forEach((s, i) => d += s - HOLES[i].par);
+  let d = 0; scores.forEach((s, i) => d += s - course.holes[i].par);
   return d;
 }
 const fmtPar = d => d === 0 ? 'E' : (d > 0 ? '+' + d : '' + d);
 
 function updateHud() {
   $('hHole').textContent = holeIdx + 1;
-  $('hCount').textContent = HOLES.length;
+  $('hCount').textContent = course.holes.length;
   $('hName').textContent = hole.name;
   $('hPar').textContent = hole.par;
   $('hStrokes').textContent = strokes;
@@ -489,7 +641,7 @@ function shoot({ ang, power }) {
   ball.vx = Math.cos(ang) * sp; ball.vy = Math.sin(ang) * sp;
   ball.spin = 0;
   ball.air = 0;
-  if (club.lob) { ball.airT = .35 + .55 * power; ball.air = ball.airT; }
+  if (club.lob) { ball.airT = (.35 + .55 * power) * (course.lowGrav ? 1.5 : 1); ball.air = ball.airT; }
   ball.moving = true; ball.hopped = false; ball.stopT = 0;
   T.gustThisShot = false;
   strokes++; updateHud();
@@ -502,7 +654,7 @@ function shoot({ ang, power }) {
 
 function penalty(kind) {
   strokes++; addRage(8);
-  toast(pick(LINES[kind]));
+  toast(pick(LINES[kind === 'splash' ? theme().splash : kind]));
   ball.x = ball.last[0]; ball.y = ball.last[1];
   ball.vx = ball.vy = 0; ball.spin = 0; ball.air = 0; ball.moving = false; ball.hopped = true;
   checkGiveUp();
@@ -648,7 +800,7 @@ function step(dt) {
   if (inWater && item.floats) damp = .955;
   const sNow = Math.hypot(ball.vx, ball.vy);
   // exponential drag plus a little rolling friction so nothing slides forever
-  const f = Math.pow(damp, dt * 60) * (sNow > 0 ? Math.max(0, 1 - (air ? 0 : 45) * dt / sNow) : 1);
+  const f = Math.pow(damp, dt * 60) * (sNow > 0 ? Math.max(0, 1 - (air ? 0 : course.lowGrav ? 30 : 45) * dt / sNow) : 1);
   ball.vx *= f; ball.vy *= f;
 
   ball.x += ball.vx * dt; ball.y += ball.vy * dt;
@@ -662,6 +814,18 @@ function step(dt) {
   for (const m of hole.mills) collideMill(m);
   trollPhysics(air, Math.hypot(ball.vx, ball.vy));
   if (!ball.moving) return; // a penalty reset happened
+  // black holes and sinkholes pull the item in; reach the middle and it's gone
+  if (!air) for (const pl of hole.pulls) {
+    const dx = pl[0] - ball.x, dy = pl[1] - ball.y, d = Math.hypot(dx, dy);
+    if (d >= pl[2]) continue;
+    if (d < 14) {
+      for (let i = 0; i < 30; i++) puff(pl[0], pl[1], course.theme === 'desert' ? '#c9954f' : '#b48cff', 200, .7, 5);
+      ring(pl[0], pl[1], 'rgba(255,255,255,.8)', 50, .5, 3); tone(400, .6, 'sine', .15, 60);
+      penalty(course.theme === 'desert' ? 'sinkhole' : 'pull'); return;
+    }
+    const f = pl[3] * (1 - d / pl[2]);
+    ball.vx += dx / d * f * dt; ball.vy += dy / d * f * dt;
+  }
   ball.x = clamp(ball.x, B + item.r, W - B - item.r);
   ball.y = clamp(ball.y, B + item.r, H - B - item.r);
 
@@ -703,7 +867,7 @@ function idle(dt) {
     if (Math.random() < .5) {
       const a = Math.random() * Math.PI * 2;
       ball.vx = Math.cos(a) * 260; ball.vy = Math.sin(a) * 260;
-      ball.air = .3; ball.airT = .3; ball.moving = true; ball.last = [ball.x, ball.y];
+      ball.air = ball.airT = course.lowGrav ? .5 : .3; ball.moving = true; ball.last = [ball.x, ball.y];
       sfx.ribbit(); toast(pick(LINES.hop), 1300);
     }
   }
@@ -720,7 +884,7 @@ function sink() {
   const msg = strokes === 1 ? `HOLE IN ONE with a ${item.name.toLowerCase()}!` : (names[d] || (d > 0 ? `+${d}. The ${item.name.toLowerCase()} made it eventually.` : 'Incredible!'));
   toast(msg, 2200);
   // ...unless something in the hole has other plans
-  const thief = T.ufo > 0 ? 'ufo' : T.thief > 0 ? 'thief' : null;
+  const thief = T.ufo > 0 ? 'ufo' : T.thief > 0 ? 'thief' : T.var > 0 ? 'var' : null;
   if (thief) { T[thief]--; setTimeout(() => { if (state === 'sinking') startAnim(thief); }, 1300); return; }
   addRage(-10);
   setTimeout(() => finishHole(strokes), 1700);
@@ -731,7 +895,7 @@ function finishHole(s) {
   state = 'between';
   scores.push(s); updateHud();
   setTimeout(() => {
-    if (holeIdx + 1 < HOLES.length) loadHole(holeIdx + 1);
+    if (holeIdx + 1 < course.holes.length) loadHole(holeIdx + 1);
     else endGame();
   }, s >= 12 ? 1800 : 300);
 }
@@ -740,14 +904,14 @@ function endGame() {
   state = 'end';
   const total = scores.reduce((a, b) => a + b, 0), best = getBest();
   const better = best === null || total < best;
-  try { if (better) localStorage.setItem(BEST_KEY, total); } catch (e) {}
-  const par = HOLES.reduce((a, h) => a + h.par, 0), d = total - par;
+  try { if (better) localStorage.setItem(bestKey(course.key), total); } catch (e) {}
+  const par = course.holes.reduce((a, h) => a + h.par, 0), d = total - par;
   $('endEmoji').textContent = d <= 0 ? '🏆' : d <= 8 ? '😤' : peakRage >= 90 ? '🤬' : '🫠';
-  $('endTitle').textContent = `${total} strokes (${fmtPar(d)})`;
+  $('endTitle').textContent = `${course.emoji} ${course.name}: ${total} strokes (${fmtPar(d)})`;
   $('endLine').textContent = (d <= 0 ? 'You beat the course. It is furious about it.' : d <= 8 ? 'You survived. Barely.' : 'The course wins this time.') +
     ` Peak rage: ${Math.round(peakRage)}%.`;
   let rows = '<tr><th>Hole</th><th></th><th>Par</th><th>You</th></tr>';
-  HOLES.forEach((h, i) => rows += `<tr><th>${i + 1}. ${h.name}</th><td>${ITEMS[h.item].emoji}</td><td>${h.par}</td><td>${scores[i]}</td></tr>`);
+  course.holes.forEach((h, i) => rows += `<tr><th>${i + 1}. ${h.name}</th><td>${ITEMS[h.item].emoji}</td><td>${h.par}</td><td>${scores[i]}</td></tr>`);
   rows += `<tr><th>Total</th><td></td><td>${par}</td><td><b>${total}</b></td></tr>`;
   if (better && best !== null) rows += `<tr><td colspan="4" class="small">New personal best! (old: ${best})</td></tr>`;
   else if (!better) rows += `<tr><td colspan="4" class="small">Your best: ${best}</td></tr>`;
@@ -771,7 +935,7 @@ function setupTrolls() {
   cups = [{ x: hole.cup[0], y: hole.cup[1], real: true }, ...(hole.fakes || []).map(([x, y]) => ({ x, y, real: false }))];
   if (cups.length > 1) shuffleCups();
   T = {
-    thief: tr.thief || 0, ufo: tr.ufo || 0, gust: tr.gust || 0, crow: tr.crow || 0, relocate: [...(tr.relocate || [])],
+    thief: tr.thief || 0, ufo: tr.ufo || 0, var: tr.var || 0, gust: tr.gust || 0, crow: tr.crow || 0, relocate: [...(tr.relocate || [])],
     flee: tr.flee || 0, fleeing: false, lidOn: !!tr.lid, lid: 0, lidWant: 0, lidRest: 0, lidSlams: 3, mole: !!tr.mole, moleUp: 0,
     gustThisShot: false, anim: null, fx: {},
   };
@@ -841,7 +1005,7 @@ function gust(c) {
       z: 10 + Math.random() * 50, vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: 80, life: .7, max: .7, color: '#ffffff', size: 3 });
   }
   noise(.9, .28, 700); tone(300, .8, 'sine', .05, 120);
-  toast(pick(LINES.gust), 1700); addRage(12);
+  toast(pick(LINES[theme().gust]), 1700); addRage(12);
 }
 
 // called when the item comes to rest without going in
@@ -869,6 +1033,7 @@ function startAnim(type, data = {}) {
   state = 'troll'; aim = null;
   const A = T.anim;
   if (type === 'thief') ball.hidden = true;
+  if (type === 'var') { ball.hidden = true; toast('📺 VAR is reviewing the putt…', 2000); tone(880, .12, 'square', .08); tone(880, .12, 'square', .08, 0, .3); }
   if (type === 'crow') {
     const drops = hole.trolls.crowDrops;
     A.drop = drops[Math.floor(Math.random() * drops.length)];
@@ -927,6 +1092,14 @@ function trollAnim(dt) {
       ball.carryH = undefined; ball.x = tx; ball.y = ty; ball.vx = ball.vy = 1; ball.moving = true;
       T.fx.crow = { t: 1.3, x: tx, y: ty, h: 30, dir: tx < W / 2 ? -1 : 1 };
       laugh(); endAnim();
+    }
+  } else if (A.type === 'var') {
+    // "checking"... then it's disallowed and goes back where you hit it from
+    if (A.t > 2.1) {
+      const [lx, ly] = ball.last;
+      placeBall(lx, ly);
+      toast(pick(LINES.var), 2400); addRage(16); laugh();
+      endAnim();
     }
   } else if (A.type === 'trap') {
     // it drops into a fake cup and comes back out at the tee
@@ -1032,10 +1205,12 @@ function buildBackground() {
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   c.clearRect(0, 0, W, H);
   let g;
-  paintGrass(c, R);
+  if (course.theme === 'desert') paintDesert(c, R);
+  else if (course.theme === 'moon') paintMoon(c, R);
+  else paintGrass(c, R);
   paintHazards(c, R);
   // the rails are 3D boxes now; paint the floor under them dark
-  c.fillStyle = '#4a3423';
+  c.fillStyle = theme().rail;
   for (const r of border) c.fillRect(...r);
 }
 
@@ -1064,15 +1239,16 @@ function paintGrass(c, R) {
 
 function paintHazards(c, R) {
   let g;
+  const th = theme();
 
   // darker fringe around hazards
-  c.fillStyle = 'rgba(30,95,38,.32)';
+  c.fillStyle = th.fringe;
   for (const r of [...hole.water, ...hole.sand]) { roundRect(r[0] - 8, r[1] - 8, r[2] + 16, r[3] + 16, 32, c); c.fill(); }
 
   // sand traps
   for (const r of hole.sand) {
     g = c.createLinearGradient(r[0], r[1], r[0] + r[2], r[1] + r[3]);
-    g.addColorStop(0, '#f8e7b4'); g.addColorStop(1, '#e2c37f');
+    g.addColorStop(0, th.sand[0]); g.addColorStop(1, th.sand[1]);
     c.fillStyle = g; roundRect(r[0], r[1], r[2], r[3], 30, c); c.fill();
     c.save(); roundRect(r[0], r[1], r[2], r[3], 30, c); c.clip();
     for (let i = 0; i < r[2] * r[3] / 30; i++) {
@@ -1084,13 +1260,13 @@ function paintHazards(c, R) {
       c.beginPath(); for (let x = r[0]; x <= r[0] + r[2]; x += 6) c.lineTo(x, y + Math.sin(x / 16) * 2.5); c.stroke();
     }
     c.restore();
-    innerShadow(c, r, 30, 'rgba(110,75,25,.55)', 10);
+    innerShadow(c, r, 30, th.sandEdge, 10);
   }
 
   // water basins (the moving surface is drawn every frame)
   for (const r of hole.water) {
     g = c.createLinearGradient(r[0], r[1], r[0], r[1] + r[3]);
-    g.addColorStop(0, '#2a74bd'); g.addColorStop(1, '#4aa3e3');
+    g.addColorStop(0, th.water[0]); g.addColorStop(1, th.water[1]);
     c.fillStyle = g; roundRect(r[0], r[1], r[2], r[3], 24, c); c.fill();
     innerShadow(c, r, 24, 'rgba(5,30,70,.7)', 16, 5);
   }
@@ -1107,7 +1283,7 @@ function paintHazards(c, R) {
   // tee box
   const [tx, ty] = hole.start;
   c.save(); c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 6 * DPR; c.shadowOffsetY = 2 * DPR;
-  c.fillStyle = '#3c9a45'; roundRect(tx - 34, ty - 34, 68, 68, 12, c); c.fill(); c.restore();
+  c.fillStyle = th.tee; roundRect(tx - 34, ty - 34, 68, 68, 12, c); c.fill(); c.restore();
   c.fillStyle = 'rgba(255,255,255,.07)';
   for (let i = 0; i < 4; i++) c.fillRect(tx - 34 + i * 17, ty - 32, 8.5, 64);
   c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = 2; c.setLineDash([6, 5]);
@@ -1115,14 +1291,14 @@ function paintHazards(c, R) {
 
   // soft vignette on the grass
   g = c.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .72);
-  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,35,5,.28)');
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, th.vignette);
   c.fillStyle = g; c.fillRect(0, 0, W, H);
 }
 
 // cups are painted every frame because some of them move
 function drawCup(c) {
   let g = ctx.createRadialGradient(c.x, c.y, 12, c.x, c.y, 52);
-  g.addColorStop(0, 'rgba(140,225,130,.95)'); g.addColorStop(1, 'rgba(140,225,130,0)');
+  const gc = theme().green; g.addColorStop(0, `rgba(${gc},.95)`); g.addColorStop(1, `rgba(${gc},0)`);
   ctx.fillStyle = g; circle(c.x, c.y, 52); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
   for (let k = 22; k < 46; k += 6) { circle(c.x, c.y, k); ctx.stroke(); }
@@ -1136,7 +1312,7 @@ function drawCup(c) {
 function drawWaterSurface(r) {
   const [x, y, w, h] = r;
   ctx.save(); roundRect(x, y, w, h, 24); ctx.clip();
-  ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 2;
+  ctx.strokeStyle = theme().waves; ctx.lineWidth = 2;
   for (let yy = y + 16; yy < y + h; yy += 24) {
     ctx.beginPath();
     for (let xx = x - 10; xx <= x + w + 10; xx += 8) ctx.lineTo(xx, yy + Math.sin(xx / 24 + time * 1.7 + yy * .31) * 3.5);
@@ -1255,7 +1431,7 @@ function mesh(geo, material, x, y, z, shadows = true) {
   return m;
 }
 function woodBox(r, h) {
-  const [x, y, w, d] = r, t = new THREE.CanvasTexture(woodCanvas);
+  const [x, y, w, d] = r, t = new THREE.CanvasTexture(railCanvas());
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   if (w >= d) t.repeat.set(w / 260, 1); else { t.center.set(.5, .5); t.rotation = Math.PI / 2; t.repeat.set(d / 260, 1); }
   return mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ map: t }), wx(x + w / 2), h / 2, wz(y + d / 2));
@@ -1611,7 +1787,225 @@ function alienModel() {
   return g;
 }
 
-const THEME = { sky: 0x9fd8ff, floor: 0x4f9e4b };
+// ----- how each course looks -----
+const THEMES = {
+  grass:  { sky: 0x9fd8ff, floor: 0x4f9e4b, rail: '#4a3423', fringe: 'rgba(30,95,38,.32)', sand: ['#f8e7b4', '#e2c37f'], sandEdge: 'rgba(110,75,25,.55)',
+            water: ['#2a74bd', '#4aa3e3'], waves: 'rgba(255,255,255,.2)', tee: '#3c9a45', green: '140,225,130', vignette: 'rgba(0,35,5,.28)',
+            splash: 'splash', gust: 'gust', hemi: .62, sun: 0xffffff },
+  desert: { sky: 0xffd9a0, floor: 0xd9ab66, rail: '#7a4e2a', fringe: 'rgba(120,70,20,.22)', sand: ['#b88a50', '#9a6e3a'], sandEdge: 'rgba(70,40,10,.55)',
+            water: ['#4f3014', '#7a4c22'], waves: 'rgba(255,215,150,.35)', tee: '#c4853f', green: '240,215,160', vignette: 'rgba(110,50,0,.25)',
+            splash: 'quicksand', gust: 'sandstorm', hemi: .66, sun: 0xfff0d0 },
+  moon:   { sky: 0x05060f, floor: 0x5c5e66, rail: '#2a2d33', fringe: 'rgba(0,0,0,.28)', sand: ['#6f7178', '#5b5d64'], sandEdge: 'rgba(0,0,0,.6)',
+            water: ['#120a26', '#2b1a55'], waves: 'rgba(190,160,255,.25)', tee: '#454b5a', green: '190,200,225', vignette: 'rgba(0,0,0,.4)',
+            splash: 'void', gust: 'solarwind', hemi: .5, sun: 0xffffff },
+};
+let course = null; // set when a round starts
+const theme = () => THEMES[course.theme];
+
+function paintDesert(c, R) {
+  let g = c.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#f2d394'); g.addColorStop(1, '#dcaa62');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.lineWidth = 2;
+  for (let y = 10; y < H; y += 26) { // wind ripples in the sand
+    c.strokeStyle = `rgba(150,95,35,${(.08 + R() * .08).toFixed(3)})`;
+    c.beginPath(); for (let x = 0; x <= W; x += 10) c.lineTo(x, y + Math.sin(x / 40 + y) * 5 + Math.sin(x / 13) * 1.5); c.stroke();
+  }
+  for (let i = 0; i < 1400; i++) { c.fillStyle = R() < .5 ? 'rgba(120,75,30,.25)' : 'rgba(255,245,220,.35)'; c.fillRect(R() * W, R() * H, 1.8, 1.8); }
+  for (let i = 0; i < 14; i++) { // dry little shrubs
+    const x = 40 + R() * (W - 80), y = 40 + R() * (H - 80);
+    c.strokeStyle = 'rgba(120,95,40,.6)'; c.lineWidth = 1.2;
+    for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + (k - 2.5) * .35; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7); c.stroke(); }
+  }
+}
+function paintMoon(c, R) {
+  let g = c.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#a9abb1'); g.addColorStop(1, '#7d8087');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  for (let i = 0; i < 2200; i++) { c.fillStyle = R() < .5 ? 'rgba(40,40,50,.22)' : 'rgba(255,255,255,.25)'; c.fillRect(R() * W, R() * H, 1.6, 1.6); }
+  for (let i = 0; i < 26; i++) { // little craters
+    const x = R() * W, y = R() * H, r = 6 + R() * 26;
+    g = c.createRadialGradient(x - r * .2, y - r * .2, r * .1, x, y, r);
+    g.addColorStop(0, 'rgba(60,62,70,.35)'); g.addColorStop(1, 'rgba(60,62,70,0)');
+    c.fillStyle = g; circle(x, y, r, c); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(x, y, r * .85, .1 * Math.PI, .9 * Math.PI); c.stroke();
+  }
+}
+
+// rails and walls: wood, sandstone or metal panels
+const railCanvases = {};
+function railCanvas() {
+  const key = course.theme;
+  if (railCanvases[key]) return railCanvases[key];
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+  const x = c.getContext('2d');
+  if (key === 'desert') {
+    const cols = ['#e3b878', '#d29f5e', '#e8c58c', '#c48f4f', '#dcae6c'];
+    for (let y = 0, i = 0; y < 96; i++) { const h = 10 + (i * 7) % 14; x.fillStyle = cols[i % cols.length]; x.fillRect(0, y, 512, h); y += h; }
+    for (let i = 0; i < 900; i++) { x.fillStyle = i % 2 ? 'rgba(90,50,15,.25)' : 'rgba(255,240,210,.3)'; x.fillRect(Math.random() * 512, Math.random() * 96, 2, 2); }
+    x.strokeStyle = 'rgba(90,50,15,.35)'; x.lineWidth = 2;
+    for (let px = 0; px < 512; px += 128) { x.beginPath(); x.moveTo(px, 0); x.lineTo(px + 8, 96); x.stroke(); }
+  } else if (key === 'moon') {
+    const g = x.createLinearGradient(0, 0, 0, 96); g.addColorStop(0, '#c3c8cf'); g.addColorStop(1, '#7d838b');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 96);
+    for (let px = 0; px < 512; px += 24) { x.fillStyle = (px / 24) % 2 ? '#f2c230' : '#222'; x.beginPath(); x.moveTo(px, 0); x.lineTo(px + 12, 0); x.lineTo(px, 12); x.lineTo(px - 12, 12); x.fill(); }
+    x.strokeStyle = 'rgba(30,35,45,.5)'; x.lineWidth = 2;
+    for (let px = 0; px < 512; px += 128) { x.strokeRect(px + 2, 16, 124, 76); }
+    x.fillStyle = 'rgba(30,35,45,.6)';
+    for (let px = 0; px < 512; px += 128) for (const [dx, dy] of [[8, 22], [118, 22], [8, 84], [118, 84]]) { circle(px + dx, dy, 2.5, x); x.fill(); }
+  } else return (railCanvases[key] = woodCanvas);
+  return (railCanvases[key] = c);
+}
+
+// ----- 3D bits that change with the course -----
+function cactusBumper(g, r) {
+  const green = mat(0x3f9a4a, { emissive: 0x000000 }), dark = mat(0x2f7a39);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r * .55, r * .62, 50, 14), green);
+  body.position.y = 25; body.castShadow = body.receiveShadow = true; g.add(body);
+  const top = new THREE.Mesh(new THREE.SphereGeometry(r * .55, 14, 8, 0, TAU, 0, Math.PI / 2), green); top.position.y = 50; g.add(top);
+  for (const s of [-1, 1]) {
+    const stub = new THREE.Mesh(new THREE.CylinderGeometry(r * .26, r * .26, r * .7, 10), dark);
+    stub.rotation.z = Math.PI / 2; stub.position.set(s * r * .75, 24 + s * 4, 0); stub.castShadow = true; g.add(stub);
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(r * .24, r * .26, 18, 10), dark);
+    up.position.set(s * r * 1.05, 32 + s * 4, 0); up.castShadow = true; g.add(up);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(r * .24, 10, 6), dark); cap.position.set(s * r * 1.05, 41 + s * 4, 0); g.add(cap);
+  }
+  const flower = new THREE.Mesh(new THREE.SphereGeometry(4, 10, 8), mat(0xff5fa2)); flower.position.y = 50 + r * .5; g.add(flower);
+  return body;
+}
+function asteroidBumper(g, r) {
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), new THREE.MeshLambertMaterial({ color: 0x8e8f96, flatShading: true, emissive: 0x000000 }));
+  rock.position.y = r * .75; rock.castShadow = rock.receiveShadow = true; g.add(rock);
+  for (let i = 0; i < 4; i++) {
+    const a = i * 1.7, crater = new THREE.Mesh(new THREE.SphereGeometry(r * .22, 8, 6), mat(0x66676d));
+    crater.position.set(Math.cos(a) * r * .8, r * .75 + Math.sin(i) * r * .4, Math.sin(a) * r * .8); crater.scale.y = .5; g.add(crater);
+  }
+  g.userData.spin = rock;
+  return rock;
+}
+
+// characters that walk across the course
+function camelModel() {
+  const g = new THREE.Group(), tan = L(0xc8955a), dark = L(0x8a5a30);
+  part(g, SPH(), tan, 0, 32, 0).scale.set(22, 12, 11);
+  part(g, SPH(), tan, -2, 44, 0).scale.set(10, 10, 8);
+  part(g, new THREE.CylinderGeometry(4, 5, 22, 10), tan, 22, 42, 0).rotation.z = -.55;
+  part(g, SPH(), tan, 32, 52, 0).scale.set(8, 5, 5);
+  for (const s of [-1, 1]) {
+    part(g, SPH(8), L(0x111111), 35, 54, s * 3.6).scale.setScalar(1.2);
+    part(g, SPH(8), dark, 28, 57, s * 3).scale.set(1.5, 3, 1);
+    for (const fx of [-14, 13]) part(g, new THREE.CylinderGeometry(2.4, 2, 26, 8), tan, fx, 13, s * 6);
+  }
+  part(g, new THREE.CylinderGeometry(1, .6, 12, 6), dark, -22, 28, 0).rotation.z = .6;
+  // a little saddle blanket
+  part(g, new THREE.BoxGeometry(14, 2, 22), L(0xd62828), 8, 41, 0);
+  return g;
+}
+function satelliteModel() {
+  const g = new THREE.Group();
+  part(g, new THREE.BoxGeometry(18, 18, 18), shiny(0xe0c060, 90), 0, 30, 0);
+  const panelTex = paintTex(64, 32, (x, w, h) => { x.fillStyle = '#1d3a8a'; x.fillRect(0, 0, w, h); x.strokeStyle = '#7fa7ff'; for (let i = 0; i <= w; i += 8) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, h); x.stroke(); } x.beginPath(); x.moveTo(0, h / 2); x.lineTo(w, h / 2); x.stroke(); });
+  for (const s of [-1, 1]) {
+    part(g, new THREE.CylinderGeometry(1, 1, 10, 6), L(0x999999), s * 14, 30, 0).rotation.z = Math.PI / 2;
+    part(g, new THREE.BoxGeometry(30, 1.5, 16), L(0xffffff, { map: panelTex }), s * 34, 30, 0);
+  }
+  const dish = part(g, new THREE.SphereGeometry(9, 14, 8, 0, TAU, 0, Math.PI / 2), L(0xf2f2f2), 0, 44, 0);
+  dish.rotation.x = Math.PI; dish.material.side = THREE.DoubleSide;
+  part(g, new THREE.SphereGeometry(1.6, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b3b }), 0, 49, 0);
+  g.userData.hover = true;
+  return g;
+}
+const CHARACTER_MODELS = { '🐫': camelModel, '🛰️': satelliteModel };
+
+// the VAR screen that floats over the cup while it "reviews" your putt
+function tvModel() {
+  const g = new THREE.Group();
+  part(g, new THREE.BoxGeometry(60, 40, 6), shiny(0x1c1f24, 80), 0, 0, 0);
+  const tex = paintTex(256, 160, (x, w, h) => {
+    x.fillStyle = '#0d2a14'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#7dff6a'; x.font = '700 70px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('VAR', w / 2, 70);
+    x.font = '600 26px Fredoka, sans-serif'; x.fillStyle = '#ffffff'; x.fillText('CHECKING…', w / 2, 128);
+    x.fillStyle = '#ff3b3b'; circle(26, 24, 9, x); x.fill();
+  });
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(54, 34), new THREE.MeshBasicMaterial({ map: tex }));
+  screen.position.z = 3.1; g.add(screen);
+    return g;
+}
+
+// a black hole (or a desert sinkhole): a swirling disc you get sucked into
+function pullModel(pl) {
+  const g = new THREE.Group(), r = pl[2], desert = course.theme === 'desert';
+  const ringMat = new THREE.MeshBasicMaterial({ color: desert ? 0xb07a3a : 0xa070ff, transparent: true, opacity: .55, depthWrite: false });
+  for (let k = 0; k < 3; k++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r * (.3 + k * .25), 1.6, 6, 48), ringMat);
+    ring.rotation.x = Math.PI / 2; ring.position.y = 1.2 + k * .3; g.add(ring);
+  }
+  const core = new THREE.Mesh(new THREE.CircleGeometry(16, 32), new THREE.MeshBasicMaterial({ color: desert ? 0x3a220c : 0x000000 }));
+  core.rotation.x = -Math.PI / 2; core.position.y = 1.5; g.add(core);
+  if (!desert) {
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(18, 2.5, 8, 32), new THREE.MeshBasicMaterial({ color: 0xffb35c }));
+    glow.rotation.x = Math.PI / 2; glow.position.y = 2; g.add(glow);
+  }
+  return g;
+}
+
+// scenery around the course
+function buildScenery(R) {
+  const outside = (x, z) => Math.abs(x) > 640 || Math.abs(z) > 420;
+  const spot = () => { for (;;) { const x = (R() - .5) * 2000, z = (R() - .5) * 1500; if (outside(x, z)) return [x, z]; } };
+  if (course.theme === 'grass') {
+    for (let i = 0; i < 46; i++) {
+      const x = (R() - .5) * 2000, z = (R() - .5) * 1500;
+      if (!outside(x, z)) continue;
+      const s = .7 + R() * .8, leaf = mat([0x2f8a3a, 0x3c9d3f, 0x27773a][i % 3]);
+      mesh(new THREE.CylinderGeometry(6 * s, 8 * s, 40 * s, 8), mat(0x7a5230), x, 20 * s, z);
+      mesh(new THREE.ConeGeometry(42 * s, 80 * s, 9), leaf, x, 70 * s, z);
+      mesh(new THREE.ConeGeometry(32 * s, 64 * s, 9), leaf, x, 108 * s, z);
+    }
+  } else if (course.theme === 'desert') {
+    for (let i = 0; i < 26; i++) { // saguaros
+      const [x, z] = spot(), s = .8 + R() * 1.2, g = new THREE.Group();
+      g.position.set(x, 0, z); g.scale.setScalar(s); level3D.add(g);
+      cactusBumper(g, 22);
+    }
+    for (let i = 0; i < 20; i++) {
+      const [x, z] = spot(), r = 10 + R() * 30;
+      const rock = mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0xb06a3a, flatShading: true }), x, r * .4, z);
+      rock.rotation.set(R(), R(), R());
+    }
+    for (let i = 0; i < 7; i++) { // mesas on the horizon
+      const a = i / 7 * TAU + R(), d = 2200 + R() * 700, w = 200 + R() * 260, h = 160 + R() * 200;
+      mesh(new THREE.CylinderGeometry(w * .8, w, h, 7), new THREE.MeshLambertMaterial({ color: 0xc4703c, flatShading: true }), Math.cos(a) * d, h / 2 - 2, Math.sin(a) * d, false);
+    }
+  } else {
+    for (let i = 0; i < 26; i++) {
+      const [x, z] = spot(), r = 8 + R() * 34;
+      const rock = mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x8a8c93, flatShading: true }), x, r * .3, z);
+      rock.rotation.set(R(), R(), R());
+    }
+    for (let i = 0; i < 12; i++) { // crater rims
+      const [x, z] = spot(), r = 40 + R() * 90;
+      const rim = mesh(new THREE.TorusGeometry(r, r * .12, 6, 28), mat(0x6b6d74), x, 0, z); rim.rotation.x = Math.PI / 2; rim.scale.z = .5;
+    }
+    // stars and the Earth
+    const n = 1400, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const u = R() * TAU, v = Math.acos(R() * 1.6 - .6), rr = 5200;
+      pos[i * 3] = Math.cos(u) * Math.sin(v) * rr; pos[i * 3 + 1] = Math.cos(v) * rr; pos[i * 3 + 2] = Math.sin(u) * Math.sin(v) * rr;
+    }
+    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    level3D.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, fog: false })));
+    const earthTex = paintTex(256, 128, (x, w, h) => {
+      x.fillStyle = '#2f6fd0'; x.fillRect(0, 0, w, h);
+      x.fillStyle = '#4caf50'; for (let i = 0; i < 14; i++) { x.beginPath(); x.ellipse(R() * w, 20 + R() * (h - 40), 10 + R() * 26, 6 + R() * 16, R() * 3, 0, TAU); x.fill(); }
+      x.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 18; i++) { x.beginPath(); x.ellipse(R() * w, R() * h, 8 + R() * 20, 2 + R() * 4, 0, 0, TAU); x.fill(); }
+    });
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(320, 32, 20), new THREE.MeshBasicMaterial({ map: earthTex, fog: false }));
+    earth.position.set(-1900, 1500, -3600); level3D.add(earth); level3D.userData.earth = earth;
+  }
+}
+
 
 function makeFlag(tex) {
   const g = new THREE.Group(); level3D.add(g);
@@ -1647,9 +2041,10 @@ function build3D() {
     });
   }
   level3D = new THREE.Group(); scene.add(level3D);
-  const th = THEME, R = rng(holeIdx * 31 + 7);
+  const th = theme(), R = rng(holeIdx * 31 + 7);
   scene.background = new THREE.Color(th.sky);
-  scene.fog = new THREE.Fog(th.sky, 1600, 4200);
+  scene.fog = course.theme === 'moon' ? new THREE.Fog(th.sky, 2600, 7000) : new THREE.Fog(th.sky, 1600, 4200);
+  hemi.intensity = th.hemi; sun.color.setHex(th.sun);
 
   // surroundings, the field and the flat effects layer
   const floor = mesh(new THREE.PlaneGeometry(9000, 9000), mat(th.floor), 0, -2, 0, false);
@@ -1661,15 +2056,7 @@ function build3D() {
   decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; decal.receiveShadow = false;
 
   // scenery around the field
-  const outside = (x, z) => Math.abs(x) > 640 || Math.abs(z) > 420;
-  for (let i = 0; i < 46; i++) {
-    const x = (R() - .5) * 2000, z = (R() - .5) * 1500;
-    if (!outside(x, z)) continue;
-    const s = .7 + R() * .8, leaf = mat([0x2f8a3a, 0x3c9d3f, 0x27773a][i % 3]);
-    mesh(new THREE.CylinderGeometry(6 * s, 8 * s, 40 * s, 8), mat(0x7a5230), x, 20 * s, z);
-    mesh(new THREE.ConeGeometry(42 * s, 80 * s, 9), leaf, x, 70 * s, z);
-    mesh(new THREE.ConeGeometry(32 * s, 64 * s, 9), leaf, x, 108 * s, z);
-  }
+  buildScenery(R);
   // walls and rails
   for (const r of border) woodBox(r, 30);
   for (const r of hole.walls) woodBox(r, 34);
@@ -1677,6 +2064,8 @@ function build3D() {
   // bumpers
   level3D.userData.bumpers = hole.bumpers.map(bm => {
     const g = new THREE.Group(); place(g, bm[0], bm[1]); level3D.add(g);
+    if (course.theme === 'desert') return { g, body: cactusBumper(g, bm[2]), bm };
+    if (course.theme === 'moon') return { g, body: asteroidBumper(g, bm[2]), bm };
     const body = new THREE.Mesh(new THREE.CylinderGeometry(bm[2], bm[2] * 1.05, 24, 32), mat(0xff4f9a, { emissive: 0x000000 }));
     body.position.y = 12; body.castShadow = body.receiveShadow = true; g.add(body);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(bm[2] * .72, 3, 8, 32), mat(0xffffff));
@@ -1703,6 +2092,10 @@ function build3D() {
 
   // moving drawers and characters
   level3D.userData.movers = hole.movers.map(m => {
+    if (m[8] && CHARACTER_MODELS[m[8]]) {
+      const s = CHARACTER_MODELS[m[8]](); s.scale.setScalar(Math.max(m[2], m[3]) / 52); level3D.add(s);
+      return { m, s, sh: blob(level3D), size: Math.max(m[2], m[3]), model: true };
+    }
     if (m[8]) {
       const size = Math.max(m[2], m[3]) * 1.15;
       const s = thickEmoji(m[8]); s.scale.setScalar(size); level3D.add(s);
@@ -1737,6 +2130,8 @@ function build3D() {
   if (T.crow) U0.crow = prop(eagleModel());
   if (T.gust) U0.wind = prop(windModel());
   if (T.ufo) { U0.ufo = ufoModel(); U0.ufo.visible = false; level3D.add(U0.ufo); }
+  if (T.var) U0.tv = prop(tvModel());
+  U0.pulls = hole.pulls.map(pl => { const o = pullModel(pl); place(o, pl[0], pl[1]); level3D.add(o); return o; });
 
   // the item, its shadow and the club
   level3D.userData.ballShadow = blob(level3D);
@@ -1813,7 +2208,7 @@ function screenToField(e) {
 function liftOf() {
   if (!(ball.air > 0)) return 0;
   const k = 1 - ball.air / ball.airT;
-  return Math.sin(k * Math.PI) * 75 * Math.min(1, ball.airT + .25);
+  return Math.sin(k * Math.PI) * (course.lowGrav ? 120 : 75) * Math.min(1, ball.airT + .25);
 }
 
 // flat things painted on the ground each frame: water ripples, aim guide, rings
@@ -1823,6 +2218,15 @@ function drawDecals() {
   for (const c of cups) drawCup(c);
   for (const r of hole.water) drawWaterSurface(r);
   for (const bz of hole.boosts) drawBoost(bz);
+  for (const pl of hole.pulls) { // a swirl on the ground under each black hole
+    ctx.save(); ctx.translate(pl[0], pl[1]); ctx.rotate(time * 1.4);
+    const dg = ctx.createRadialGradient(0, 0, 4, 0, 0, pl[2]);
+    dg.addColorStop(0, course.theme === 'desert' ? 'rgba(60,35,10,.75)' : 'rgba(20,0,40,.8)'); dg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = dg; circle(0, 0, pl[2]); ctx.fill();
+    ctx.strokeStyle = course.theme === 'desert' ? 'rgba(120,75,30,.5)' : 'rgba(170,120,255,.55)'; ctx.lineWidth = 2.5;
+    for (let k = 0; k < 4; k++) { ctx.beginPath(); for (let a = 0; a < 9; a += .25) { const rr = pl[2] * (1 - a / 9); ctx.lineTo(Math.cos(a + k * 1.57) * rr, Math.sin(a + k * 1.57) * rr); } ctx.stroke(); }
+    ctx.restore();
+  }
   if (state === 'play' && !ball.moving && !aim && !ball.gone) {
     const t = (time * 1.2) % 1;
     ctx.strokeStyle = `rgba(255,255,255,${(.8 * (1 - t)).toFixed(2)})`; ctx.lineWidth = 3;
@@ -1888,6 +2292,13 @@ const HALF = { ring: .34, egg: .95, pizza: .28, donut: .42, bean: .78, sock: .5,
 // the troll props: the hand, the lid, the mole, the bird, the wind and the UFO
 function drawTrolls(U) {
   const c = realCup(), A = T.anim;
+  for (const p of U.pulls || []) p.rotation.y = -time * 1.6;
+  for (const { g } of U.bumpers) if (g.userData.spin) { g.userData.spin.rotation.y += drawDt * .6; g.userData.spin.rotation.x += drawDt * .3; }
+  if (U.earth) U.earth.rotation.y += drawDt * .05;
+  if (U.tv) {
+    U.tv.visible = !!(A && A.type === 'var');
+    if (U.tv.visible) { place(U.tv, c.x, c.y, 140 + Math.sin(time * 3) * 3); turnToCamera(U.tv); }
+  }
   if (U.lid) place(U.lid, c.x + (1 - T.lid) * 38, c.y, 2.5);
   if (U.mole) {
     // pops up out of the cup (it hides under the grass when it ducks) and sways
@@ -1961,6 +2372,15 @@ function draw() {
   for (const { blades, m } of U.mills) blades.rotation.y = -m[3] * time;
   for (const o of U.movers) {
     const r = moverRect(o.m, time), cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2;
+    if (o.model) {
+      // walk (or float) in the direction it's moving, with a little bob
+      const [vx, vy] = moverVel(o.m, time), sat = o.s.userData.hover;
+      place(o.s, cx, cy, sat ? 6 + Math.sin(time * 2) * 4 : Math.abs(Math.sin(time * 8)) * 2);
+      if (sat) o.s.rotation.y += drawDt * .8;
+      else if (Math.hypot(vx, vy) > 5) o.s.rotation.y = -Math.atan2(vy, vx);
+      setBlob(o.sh, cx, cy, o.size * .45);
+      continue;
+    }
     if (o.box) { place(o.box, cx, cy, 16); place(o.s, cx, cy, 46); }
     else { place(o.s, cx, cy, o.size * .46 + Math.abs(Math.sin(time * 9 + o.m[7])) * 3); setBlob(o.sh, cx, cy, o.size * .4); }
     faceCamera(o.s);
@@ -2058,6 +2478,33 @@ function draw() {
   renderer.render(scene, camera);
 }
 
+// ---------- Minimap ----------
+const mini = $('mini'), mctx = mini.getContext('2d');
+function drawMini() {
+  const on = state === 'play' || state === 'sinking' || state === 'troll';
+  mini.classList.toggle('show', on);
+  if (!on) return;
+  const k = mini.width / W;
+  mctx.setTransform(1, 0, 0, 1, 0, 0);
+  mctx.drawImage(bg, 0, 0, mini.width, mini.height);
+  mctx.setTransform(k, 0, 0, k, 0, 0);
+  mctx.fillStyle = '#5a3a1e';
+  for (const r of [...border, ...hole.walls]) mctx.fillRect(...r);
+  for (const m of hole.movers) mctx.fillRect(...moverRect(m, time));
+  mctx.fillStyle = course.theme === 'desert' ? '#3f9a4a' : course.theme === 'moon' ? '#8e8f96' : '#ff4f9a';
+  for (const bm of hole.bumpers) { circle(bm[0], bm[1], bm[2], mctx); mctx.fill(); }
+  for (const pl of hole.pulls) { mctx.fillStyle = 'rgba(30,0,60,.6)'; circle(pl[0], pl[1], pl[2] * .6, mctx); mctx.fill(); }
+  for (const c of cups) {
+    mctx.fillStyle = '#fff'; circle(c.x, c.y, 22, mctx); mctx.fill();
+    mctx.fillStyle = '#000'; circle(c.x, c.y, 13, mctx); mctx.fill();
+    mctx.fillStyle = '#ff4f4f'; mctx.fillRect(c.x, c.y - 52, 26, 18); mctx.fillStyle = '#fff'; mctx.fillRect(c.x - 2, c.y - 52, 4, 52);
+  }
+  if (!ball.gone && !ball.hidden) {
+    mctx.fillStyle = '#ffd23d'; mctx.strokeStyle = '#000'; mctx.lineWidth = 6;
+    circle(ball.x, ball.y, 20, mctx); mctx.fill(); mctx.stroke();
+  }
+}
+
 // ---------- Loop ----------
 let lastT = performance.now(), drawDt = 1 / 60;
 function frame(now) {
@@ -2088,23 +2535,31 @@ function frame(now) {
     if (ball.moving && state === 'play') { ball.trail.push([ball.x, ball.y]); if (ball.trail.length > 12) ball.trail.shift(); }
     else if (ball.trail.length) ball.trail.shift();
   }
-  if (hole) draw();
+  if (hole) { draw(); drawMini(); }
   requestAnimationFrame(frame);
 }
 
 // ---------- Start ----------
-$('startBtn').onclick = () => { audio(); startGame(); };
+$('startBtn').onclick = () => { audio(); showMap(); };
 $('introBtn').onclick = () => { show(null); state = 'play'; };
-$('againBtn').onclick = startGame;
-$('menuBtn').onclick = showMenu;
+$('againBtn').onclick = () => startGame();
+$('mapBtn2').onclick = showMap;
+$('menuBtn').onclick = showMap;
 $('camBtn').onclick = toggleCam;
 
 buildClubs();
+course = COURSES[0];
 prepLevel(0); // hole 1 sits behind the title screen
 showMenu();
-// ?hole=N jumps straight to a hole (handy for practice)
-const jump = +new URLSearchParams(location.search).get('hole');
-if (jump >= 1 && jump <= HOLES.length) { scores = HOLES.slice(0, jump - 1).map(h => h.par); loadHole(jump - 1); }
+// ?course=moon&hole=N jumps straight to a hole (handy for practice)
+const params = new URLSearchParams(location.search), jumpCourse = COURSES.find(c => c.key === params.get('course'));
+const jump = +params.get('hole');
+if (jumpCourse || jump) {
+  course = jumpCourse || COURSES[0];
+  const h = clamp(jump || 1, 1, course.holes.length);
+  scores = course.holes.slice(0, h - 1).map(x => x.par); rage = 0;
+  loadHole(h - 1);
+}
 requestAnimationFrame(frame);
 })();
 </script>
