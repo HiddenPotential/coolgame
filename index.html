@@ -197,11 +197,18 @@ const ITEMS = {
 
 // ---------- Things you hit them with ----------
 const CLUBS = [
-  { emoji: '🥖', name: 'Baguette',       desc: 'Crusty. Reliable. French.',          power: 1 },
-  { emoji: '🐟', name: 'Wet Fish',       desc: 'Huge slap, terrible aim.',           power: 1.35, wobble: .4 },
-  { emoji: '🍳', name: 'Frying Pan',     desc: 'Lobs it over water and sand.',       power: .95, lob: true },
-  { emoji: '🐔', name: 'Rubber Chicken', desc: 'Curves the shot. Which way? Unclear.', power: 1, chicken: true },
+  { key: 'putter', name: 'Putter', desc: 'Gentle and accurate. For the green.', power: .55 },
+  { key: 'iron',   name: '7 Iron', desc: 'The solid all-rounder.',              power: 1 },
+  { key: 'wedge',  name: 'Wedge',  desc: 'Pops it up over water and sand.',     power: .95, lob: true },
+  { key: 'driver', name: 'Driver', desc: 'Huge power, a little wild.',          power: 1.35, wobble: .12 },
 ];
+// little pictures of each club for the buttons
+const CLUB_ICONS = {
+  putter: '<path d="M30 4 L16 31" stroke="#8b929a" stroke-width="2.5"/><path d="M30 4 L27 10" stroke="#222" stroke-width="4"/><rect x="8" y="30" width="16" height="6" rx="2" fill="#9aa1a8"/>',
+  iron:   '<path d="M30 4 L17 30" stroke="#8b929a" stroke-width="2.5"/><path d="M30 4 L27 10" stroke="#222" stroke-width="4"/><path d="M11 29 L20 28 L20 36 L9 36 Z" fill="#b8bfc6"/>',
+  wedge:  '<path d="M30 4 L18 29" stroke="#8b929a" stroke-width="2.5"/><path d="M30 4 L27 10" stroke="#222" stroke-width="4"/><path d="M12 27 L21 28 L19 36 L8 35 Z" fill="#7f868d"/>',
+  driver: '<path d="M30 4 L19 27" stroke="#8b929a" stroke-width="2.5"/><path d="M30 4 L27 10" stroke="#222" stroke-width="4"/><ellipse cx="14" cy="31" rx="9" ry="6" fill="#26282b"/><ellipse cx="12" cy="29" rx="4" ry="2" fill="#5a5e63"/>',
+};
 
 // ---------- Course ----------
 // walls/water/sand/boosts: [x, y, w, h(, angle)], bumpers: [x, y, r],
@@ -270,7 +277,6 @@ const LINES = {
   splash: ['Splash! That one is sleeping with the fishes.', 'Glub glub. +1 stroke.', 'It did not float. +1 stroke.'],
   crack:  ['CRACK! Omelette time. +1 stroke.', 'The egg has perished. +1 stroke.', 'Scrambled. +1 stroke.'],
   hop:    ['The bean jumped. Nobody told it to.', 'Boing. (The bean moved.)', 'The bean has made a choice.'],
-  squawk: ['BAWK!', 'The chicken has spoken.', 'Squeeeak!'],
   duckwater: ['The life ring is having a lovely float.', 'Bob bob. Unbothered.'],
   lip:    ['Lipped out! Too fast.', 'So close. Slow down a bit.'],
   thief:  ['✋ Nope.', '✋ Not today.', '✋ The hole has rejected your offering.'],
@@ -312,9 +318,9 @@ function noise(dur, vol = .2, freq = 1000) {
 }
 const sfx = {
   hit(club) {
-    if (club.chicken) { tone(900, .25, 'sawtooth', .12, 300); tone(1200, .15, 'square', .06, 500, .05); }
-    else if (club.wobble) { noise(.18, .35, 700); tone(160, .1, 'sine', .2, 80); }
-    else if (club.lob) { tone(520, .4, 'triangle', .2, 480); tone(1040, .3, 'sine', .08); }
+    if (club.key === 'driver') { noise(.12, .45, 3500); tone(1800, .05, 'square', .08, 900); tone(140, .12, 'sine', .2, 70); }
+    else if (club.key === 'putter') { tone(1500, .05, 'sine', .12, 1300); noise(.03, .12, 5000); }
+    else if (club.lob) { noise(.1, .3, 1800); tone(700, .25, 'triangle', .1, 900); }
     else { noise(.08, .3, 2500); tone(220, .08, 'triangle', .15, 120); }
   },
   wall(v) { tone(180 + Math.random() * 40, .06, 'square', Math.min(.12, v / 6000)); },
@@ -333,7 +339,7 @@ const inRect = (x, y, r) => x > r[0] && x < r[0] + r[2] && y > r[1] && y < r[1] 
 const border = [[0, 0, W, B], [0, H - B, W, B], [0, 0, B, H], [W - B, 0, B, H]];
 
 // ---------- Game state ----------
-let holeIdx = 0, hole = null, item = null, clubIdx = 0;
+let holeIdx = 0, hole = null, item = null, clubIdx = 1; // start with the 7 iron
 let strokes = 0, scores = [], time = 0;
 let ball = null, aim = null, particles = [], rings = [], swing = null, sinkAnim = 0, shake = 0;
 let state = 'title'; // title | intro | play | sinking | troll | between | end
@@ -426,7 +432,7 @@ function buildClubs() {
   CLUBS.forEach((c, i) => {
     const b = document.createElement('button');
     b.className = 'club' + (i === clubIdx ? ' sel' : '');
-    b.innerHTML = `<span class="e">${c.emoji}</span><span><span class="n">${c.name}<kbd>${i + 1}</kbd></span><br><span class="d">${c.desc}</span></span>`;
+    b.innerHTML = `<svg class="e" viewBox="0 0 40 40" width="38" height="38" fill="none" stroke-linecap="round">${CLUB_ICONS[c.key]}</svg><span><span class="n">${c.name}<kbd>${i + 1}</kbd></span><br><span class="d">${c.desc}</span></span>`;
     b.onclick = () => selectClub(i);
     el.appendChild(b);
   });
@@ -481,15 +487,14 @@ function shoot({ ang, power }) {
   const sp = MAX_SPEED * power * club.power * item.power;
   ball.last = [ball.x, ball.y];
   ball.vx = Math.cos(ang) * sp; ball.vy = Math.sin(ang) * sp;
-  ball.spin = club.chicken ? (Math.random() < .5 ? -1 : 1) * (1.2 + Math.random() * .8) : 0;
+  ball.spin = 0;
   ball.air = 0;
   if (club.lob) { ball.airT = .35 + .55 * power; ball.air = ball.airT; }
   ball.moving = true; ball.hopped = false; ball.stopT = 0;
   T.gustThisShot = false;
   strokes++; updateHud();
-  swing = { t: 0, ang, club };
+  swing = { t: 0, ang, club, power };
   sfx.hit(club);
-  if (club.chicken) toast(pick(LINES.squawk), 900);
   for (let i = 0; i < 12; i++) puff(ball.x, ball.y, '#e8f5d0', 160, .45, 4);
   ring(ball.x, ball.y, 'rgba(255,255,255,.8)', 20 + power * 40, .35, 3);
   if (power > .85) shake = Math.max(shake, 3);
@@ -626,7 +631,7 @@ function step(dt) {
     if (Math.random() < .05) sfx.boost();
   }
 
-  // curve (chicken spin + banana shape)
+  // curve (the banana is shaped that way)
   let w = ball.spin;
   if (item.curve && !air) w += item.curve * -1.1 * Math.min(1, sp0 / 300);
   if (w) {
@@ -1461,6 +1466,36 @@ function thickEmoji(ch, depth = .14) {
   }
   return g;
 }
+// ----- golf clubs: built hanging down from the hands, head resting on the ground -----
+const CLUB_LEN = 66;
+function clubModel(key) {
+  const hands = new THREE.Group(), club = new THREE.Group();
+  hands.rotation.order = 'YXZ'; hands.add(club);
+  const steel = new THREE.MeshPhongMaterial({ color: 0xc9ced4, shininess: 90 });
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; club.add(o); return o; };
+  add(new THREE.CylinderGeometry(1.2, 1.5, CLUB_LEN, 8), steel, 0, -CLUB_LEN / 2, 0);
+  add(new THREE.CylinderGeometry(2.6, 2.3, 18, 10), L(0x222428), 0, -9, 0);
+  const y = -CLUB_LEN;
+  if (key === 'putter') {
+    add(new THREE.BoxGeometry(6, 6, 22), new THREE.MeshPhongMaterial({ color: 0xa8afb6, shininess: 120 }), 2, y, 4);
+    add(new THREE.BoxGeometry(1, 4, 14), L(0xd62828), 5.2, y + .5, 4);
+  } else if (key === 'driver') {
+    add(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshPhongMaterial({ color: 0x222428, shininess: 110 }), 3, y + 1, 6).scale.set(9, 7, 13);
+    add(new THREE.BoxGeometry(1, 8, 16), new THREE.MeshPhongMaterial({ color: 0x8f969e, shininess: 120 }), 11.5, y + 1, 6);
+  } else { // irons and wedges: a flat blade, the wedge tilted back
+    const blade = add(new THREE.BoxGeometry(3, 12, 18), new THREE.MeshPhongMaterial({ color: key === 'wedge' ? 0x8a9097 : 0xc4cad0, shininess: 120 }), 1.5, y + 2, 6);
+    blade.rotation.z = key === 'wedge' ? .55 : .25;
+  }
+  hands.userData.key = key;
+  return hands;
+}
+// put the hands above and behind the item, aimed at ang, swung back by `swingAng` (negative = backswing)
+function poseClub(o, bx, by, ang, swingAng) {
+  const back = item.r + 6;
+  place(o, bx - Math.cos(ang) * back, by - Math.sin(ang) * back, CLUB_LEN + 4);
+  o.rotation.set(0, -ang, swingAng);
+}
+
 // turn something to face the camera, leaning back a little so it reads from above
 function faceCamera(o) {
   const dx = camera.position.x - o.position.x, dz = camera.position.z - o.position.z;
@@ -1519,7 +1554,7 @@ function build3D() {
   decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; decal.receiveShadow = false;
 
   // scenery around the field
-  const outside = (x, z) => Math.abs(x) > 560 || Math.abs(z) > 380;
+  const outside = (x, z) => Math.abs(x) > 640 || Math.abs(z) > 420;
   for (let i = 0; i < 46; i++) {
     const x = (R() - .5) * 2000, z = (R() - .5) * 1500;
     if (!outside(x, z)) continue;
@@ -1633,7 +1668,8 @@ function updateCamera(dt) {
       followDir = [dx / d, dy / d];
     }
     const [fx, fy] = followDir, bx = ball.gone ? ball.last[0] : ball.x, by = ball.gone ? ball.last[1] : ball.y;
-    pos = [wx(bx - fx * 330), 250, wz(by - fy * 330)];
+    // stay just outside the rails so the trees never get in the way
+    pos = [wx(clamp(bx - fx * 330, -90, W + 90)), 250, wz(clamp(by - fy * 330, -90, H + 90))];
     look = [wx(bx + fx * 180), 0, wz(by + fy * 180)];
   }
   const k = snapCamera ? 1 : 1 - Math.exp(-(aim ? 1.5 : 3.5) * dt);
@@ -1722,8 +1758,7 @@ function drawAim() {
   ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ang);
   const path = u => {
     const x = item.r + 14 + u * len;
-    if (club.wobble) return [x, Math.sin(x / 10 + time * 12) * 9 * u];
-    if (club.chicken) return [x, Math.sin(u * Math.PI) * Math.sin(time * 4) * 38];
+    if (club.wobble) return [x, Math.sin(x / 10 + time * 9) * 5 * u];
     return [x, 0];
   };
   const dots = Math.max(4, Math.floor(len / 14));
@@ -1836,34 +1871,29 @@ function draw() {
 
   // the club winding up, the swing, and the power label
   const club = CLUBS[clubIdx];
-  const swapEmoji = (slot, ch, size) => {
-    if (U[slot + 'Ch'] !== ch) {
-      if (U[slot]) level3D.remove(U[slot]);
-      U[slot] = thickEmoji(ch, .2); U[slot].rotation.order = 'YXZ'; U[slot].scale.setScalar(size);
-      level3D.add(U[slot]); U[slot + 'Ch'] = ch;
-    }
-    return U[slot];
-  };
-  swapEmoji('club', club.emoji, 44).visible = !!(aim && state === 'play');
-  U.pct.visible = U.club.visible;
-  if (U.club.visible) {
-    const { ang, power } = aimVec(), d = item.r + 24 + power * 34;
-    place(U.club, ball.x - Math.cos(ang) * d, ball.y - Math.sin(ang) * d, 26 + power * 10);
-    faceCamera(U.club);
-    U.club.rotation.z = (club.chicken ? 0 : Math.PI / 2) - power * .6;
+  const shown = swing ? swing.club : club;
+  if (!U.club || U.club.userData.key !== shown.key) {
+    if (U.club) level3D.remove(U.club);
+    U.club = clubModel(shown.key); level3D.add(U.club);
+  }
+  const aiming = !!(aim && state === 'play');
+  U.club.visible = aiming || !!swing;
+  U.pct.visible = aiming;
+  if (aiming) {
+    // backswing grows with power
+    const { ang, power } = aimVec();
+    poseClub(U.club, ball.x, ball.y, ang, -(.15 + power * 1.5));
     U.pct.material.map = textTex(Math.round(power * 100) + '%');
     place(U.pct, ball.x, ball.y, item.r * 2.3 + 34);
   }
-  swapEmoji('swing', (swing ? swing.club : club).emoji, 46).visible = !!swing;
   if (swing) {
-    swing.t += 1 / 60;
-    const k = swing.t / .35;
-    if (k > 1) { swing = null; U.swing.visible = false; }
+    // whip through the ball and into the follow-through
+    swing.t += drawDt;
+    const k = swing.t / .4;
+    if (k > 1) swing = null;
     else {
-      U.swing.scale.setScalar(46 * (1 - k * .7));
-      place(U.swing, ball.last[0] - Math.cos(swing.ang) * (30 - k * 40), ball.last[1] - Math.sin(swing.ang) * (30 - k * 40), 26);
-      faceCamera(U.swing);
-      U.swing.rotation.z = Math.PI / 2 - k * 2.4;
+      const from = -(.15 + swing.power * 1.5), to = 1.3, e = 1 - Math.pow(1 - Math.min(1, k * 1.6), 3);
+      poseClub(U.club, ball.last[0], ball.last[1], swing.ang, from + (to - from) * e);
     }
   }
 

@@ -21,10 +21,10 @@ You hit 3D models of a watermelon, orange, egg, coconut, bagel, jelly, pineapple
 
 | Club | What it does |
 | --- | --- |
-| 🥖 Baguette | Reliable, straight shot |
-| 🐟 Wet Fish | Extra power, terrible aim |
-| 🍳 Frying Pan | Lobs over water and sand |
-| 🐔 Rubber Chicken | Curves the shot (randomly left or right) |
+| Putter | Gentle and accurate, for short putts |
+| 7 Iron | The solid all-rounder |
+| Wedge | Pops it up over water and sand |
+| Driver | Huge power, a little wild |
 
 ## Play
 
