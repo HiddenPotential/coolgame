@@ -24,6 +24,11 @@ A minimap in the corner shows the whole hole. The holes of Meadow Links:
 
 On top of these, the desert and moon add **VAR review**, which watches your putt go in and then disallows it.
 
+And on every hole, on every course, **the ground crumbles**. Weak spots are hidden all over the course and look exactly like normal ground.
+Bits of the course crack and fall away on their own, sometimes the ground cracks as you roll over it, and if your item stops on a weak spot
+(or near the cup, where it's most annoying) the ground starts shaking under it: you have about a second to hit it out of there.
+Fall into a hole and it's +1 stroke, back to where you hit from. A wedge lob flies over holes. The tee and the cups never crumble.
+
 Every troll has a limit, so every hole can be finished, and the mercy rule ends a hole at 12 strokes.
 A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue.
 
