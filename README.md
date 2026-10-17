@@ -1,14 +1,14 @@
 # 🏆 Wacky Sports
 
-Sports in 3D, but nothing is a ball and nothing is a club.
+Sports in 3D, but nothing is a ball and nothing is a club. Every item is a little 3D model; pins, goalies and clubs are chunky 3D emoji.
 
 | Sport | What you do |
 | --- | --- |
-| ⛳ Golf | Nine holes. Sink a rubber duck, raw egg, pizza slice, donut, watermelon, frog, sock, cheese and banana in as few strokes as possible. |
-| 🎳 Bowling | Five frames. Bowl a melon, pumpkin, coconut, turtle and duck at juice boxes, bottles, flamingos, cans and stone heads. Strikes +10, spares +5. |
-| ⚽ Penalties | Three rounds of five shots. Get burgers, yarn and pufferfish past a crab, an octopus with penguin defenders, and a gorilla. |
-| 🏀 Hoops | Every shot is a lob. Land oranges, bagels and hamsters in a hoop that starts moving. 2 points, or 3 from the gold spots. |
-| 🥌 Curling | Slide teapots, penguins, butter and ice cubes past the red line and onto the target. Knock the grey rocks out of the way. |
+| ⛳ Golf | Nine holes. Sink a life ring, raw egg, pizza slice, donut, watermelon, jumping bean, sock, cheese and banana in as few strokes as possible. |
+| 🎳 Bowling | Five frames. Bowl a melon, pumpkin, coconut, pineapple and cheese at juice boxes, bottles, flamingos, cans and stone heads. Strikes +10, spares +5. |
+| ⚽ Penalties | Three rounds of five shots. Get burgers, yarn and wobbly jelly past a crab, an octopus with penguin defenders, and a gorilla. |
+| 🏀 Hoops | Every shot is a lob. Land oranges, bagels and frisbees in a hoop that starts moving. 2 points, or 3 from the gold spots. |
+| 🥌 Curling | Slide teapots, soap, butter and ice cubes past the red line and onto the target. Knock the grey rocks out of the way. |
 
 Hit everything with:
 

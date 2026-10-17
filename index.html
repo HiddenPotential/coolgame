@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
-<meta name="description" content="Golf, bowling, penalties, hoops and curling, but the ball is a rubber duck and the club is a wet fish.">
+<meta name="description" content="Golf, bowling, penalties, hoops and curling, but the ball is a watermelon and the club is a wet fish.">
 <style>
   :root {
     --bg: #1d2b1f;
@@ -141,9 +141,9 @@
 
     <div class="screen show" id="titleScreen">
       <div class="card">
-        <div class="big-emoji">🦆🐟🍕</div>
+        <div class="big-emoji">🍉🐟🍕</div>
         <h1>Wacky Sports</h1>
-        <p>No balls. No clubs. Just a rubber duck, a wet fish, and your dignity.</p>
+        <p>No balls. No clubs. Just a watermelon, a wet fish, and your dignity.</p>
         <div class="sports" id="sportGrid"></div>
         <p class="small">Drag anywhere to pull back and aim, release to swing.<br>Pick a club with the buttons below or keys 1–4.</p>
       </div>
@@ -194,12 +194,12 @@ const $ = id => document.getElementById(id);
 // ---------- Things you hit ----------
 // damp: speed kept per 1/60 s. bounce: wall restitution. power: shot strength multiplier.
 const ITEMS = {
-  duck:   { emoji: '🦆', name: 'Rubber Duck',  r: 16, bounce: .7,  damp: .985, power: 1,    desc: 'Floats! Water only slows it down.', floats: true },
+  ring:   { emoji: '🛟', name: 'Life Ring',    r: 16, bounce: .7,  damp: .985, power: 1,    desc: 'Floats! Water only slows it down.', floats: true },
   egg:    { emoji: '🥚', name: 'Raw Egg',      r: 14, bounce: .45, damp: .986, power: 1,    desc: 'Fragile. Smack a wall too hard and it cracks (+1 stroke).', fragile: true },
   pizza:  { emoji: '🍕', name: 'Pizza Slice',  r: 16, bounce: .25, damp: .962, power: 1.15, desc: 'Greasy and sticky. Barely slides. Use the speed pads.' },
   donut:  { emoji: '🍩', name: 'Glazed Donut', r: 16, bounce: .6,  damp: .993, power: .85,  desc: 'Slippery glaze. It slides basically forever.' },
   melon:  { emoji: '🍉', name: 'Watermelon',   r: 22, bounce: .3,  damp: .988, power: .8,   desc: 'Heavy. Bumpers barely move it.', heavy: true },
-  frog:   { emoji: '🐸', name: 'Frog',         r: 16, bounce: .6,  damp: .982, power: 1,    desc: 'Has opinions. Sometimes hops off on its own after it stops.', hops: true },
+  bean:   { emoji: '🫘', name: 'Jumping Bean', r: 15, bounce: .6,  damp: .982, power: 1,    desc: 'Has opinions. Sometimes jumps off on its own after it stops.', hops: true },
   sock:   { emoji: '🧦', name: 'Lost Sock',    r: 15, bounce: .15, damp: .98,  power: 1.05, desc: 'Floppy. Zero bounce.' },
   cheese: { emoji: '🧀', name: 'Bouncy Cheese',r: 16, bounce: 1.08,damp: .987, power: .95,  desc: 'Somehow speeds UP when it hits a wall.' },
   banana: { emoji: '🍌', name: 'Banana',       r: 16, bounce: .55, damp: .986, power: 1,    desc: 'Curves on its own. It is shaped that way.', curve: 1 },
@@ -217,9 +217,9 @@ const CLUBS = [
 // walls/water/sand/boosts: [x, y, w, h(, angle)], bumpers: [x, y, r],
 // mills: [x, y, armLength, radPerSec], movers: [x, y, w, h, dx, dy, periodSec, phase]
 const HOLES = [
-  { name: 'Duck Pond Drive', item: 'duck', par: 2, start: [130, 320], cup: [870, 320],
+  { name: 'Life Ring Lagoon', item: 'ring', par: 2, start: [130, 320], cup: [870, 320],
     water: [[360, 110, 280, 420]], walls: [[300, 20, 24, 120], [300, 500, 24, 120]], bumpers: [[760, 200, 26], [760, 440, 26]],
-    tip: 'Ducks float. Just send it straight through the pond.' },
+    tip: 'Life rings float. Just send it straight through the pond.' },
   { name: 'Eggshell Alley', item: 'egg', par: 4, start: [110, 540], cup: [880, 530],
     walls: [[230, 190, 30, 430], [490, 20, 30, 430], [740, 190, 30, 430]],
     tip: 'Gentle shots. Nobody likes scrambled eggs on the green.' },
@@ -236,9 +236,9 @@ const HOLES = [
   { name: 'Melon Pinball', item: 'melon', par: 3, start: [120, 520], cup: [870, 130],
     bumpers: [[340, 200, 34], [340, 440, 34], [520, 320, 34], [700, 200, 34], [700, 440, 34], [520, 110, 28], [520, 530, 28]],
     tip: 'A watermelon has no fear of bumpers.' },
-  { name: 'Frog Bog', item: 'frog', par: 4, start: [100, 320], cup: [890, 110],
+  { name: 'Bean Bog', item: 'bean', par: 4, start: [100, 320], cup: [890, 110],
     water: [[200, 20, 580, 250], [200, 380, 580, 240], [780, 200, 120, 60]],
-    tip: 'Narrow bridge. Frogs hop. You see the problem. (The frying pan can lob over water.)' },
+    tip: 'Narrow bridge. Jumping beans jump. You see the problem. (The frying pan can lob over water.)' },
   { name: 'The Sock Drawer', item: 'sock', par: 3, start: [110, 320], cup: [890, 320],
     movers: [[300, 30, 30, 190, 0, 390, 2.6, 0], [500, 30, 30, 190, 0, 390, 2.0, 2], [700, 30, 30, 190, 0, 390, 1.6, 4]],
     tip: 'The drawers open and close. Socks get lost in there.' },
@@ -257,19 +257,20 @@ const HOLES = [
 Object.assign(ITEMS, {
   pumpkin: { emoji: '🎃', name: 'Pumpkin',       r: 20, bounce: .3,  damp: .988, power: .95, mass: 3,   desc: 'Heavy and roundish. Built for bowling.' },
   coconut: { emoji: '🥥', name: 'Coconut',       r: 17, bounce: .5,  damp: .99,  power: 1,   mass: 2.2, desc: 'Hard as a rock. Rolls true.' },
-  turtle:  { emoji: '🐢', name: 'Turtle',        r: 18, bounce: .3,  damp: .978, power: 1.15,mass: 2.6, desc: 'Stubborn and surprisingly heavy.' },
+  pineapple: { emoji: '🍍', name: 'Pineapple',   r: 18, bounce: .3,  damp: .978, power: 1.15,mass: 2.6, desc: 'Spiky, stubborn and surprisingly heavy.' },
   burger:  { emoji: '🍔', name: 'Burger',        r: 17, bounce: .4,  damp: .984, power: 1,   desc: 'Juicy. Kicks like a dream.' },
-  puffer:  { emoji: '🐡', name: 'Pufferfish',    r: 18, bounce: 1.0, damp: .986, power: .95, desc: 'Spiky and VERY bouncy.' },
+  jelly:   { emoji: '🍮', name: 'Wobbly Jelly',  r: 18, bounce: 1.0, damp: .986, power: .95, desc: 'Wobbly and VERY bouncy.' },
   yarn:    { emoji: '🧶', name: 'Ball of Yarn',  r: 16, bounce: .3,  damp: .98,  power: 1.05,desc: 'Soft. Barely bounces.' },
   orange:  { emoji: '🍊', name: 'Orange',        r: 15, bounce: .6,  damp: .985, power: 1,   desc: 'Basically a basketball. Basically.' },
   bagel:   { emoji: '🥯', name: 'Bagel',         r: 16, bounce: .4,  damp: .982, power: 1.05,desc: 'Already has a hole. Wants another.' },
-  hamster: { emoji: '🐹', name: 'Hamster',       r: 15, bounce: .5,  damp: .982, power: 1.1, desc: 'Light and zippy. Wheee!' },
+  frisbee: { emoji: '🥏', name: 'Frisbee',       r: 15, bounce: .5,  damp: .982, power: 1.1, desc: 'Light and zippy. Wheee!' },
   teapot:  { emoji: '🫖', name: 'Teapot',        r: 18, bounce: .3,  damp: .982, power: .95, mass: 2.5, desc: 'Heavy. Hard to knock away.' },
-  penguin: { emoji: '🐧', name: 'Penguin',       r: 17, bounce: .4,  damp: .99,  power: .85, mass: 1.5, desc: 'Belly-slides a LONG way.' },
+  soap:    { emoji: '🧼', name: 'Bar of Soap',   r: 17, bounce: .4,  damp: .99,  power: .85, mass: 1.5, desc: 'Slides a LONG way.' },
   butter:  { emoji: '🧈', name: 'Stick of Butter', r: 16, bounce: .2, damp: .993, power: .8, desc: 'Ridiculously slippery.' },
   icecube: { emoji: '🧊', name: 'Ice Cube',      r: 15, bounce: .5,  damp: .99,  power: .9,  desc: 'Right at home on the ice.' },
 });
 ITEMS.melon.mass = 3;
+for (const k in ITEMS) ITEMS[k].key = k;
 
 // Ten pins in a triangle pointing at the thrower.
 function pinset(emoji, hx = 750, cy = 320, gap = 34) {
@@ -283,20 +284,20 @@ const BOWLING = [
   { ...LANE, name: 'Juice Box Lanes', item: 'melon', pins: pinset('🧃'), tip: 'Aim for the front pin, just a little off-center.' },
   { ...LANE, name: 'Bottle Bash', item: 'pumpkin', pins: pinset('🍾'), tip: 'Pumpkins are heavy. Let it rip.' },
   { ...LANE, name: 'Flamingo Formation', item: 'coconut', pins: pinset('🦩'), bumpers: [[500, 320, 22]], tip: 'There is a bumper in the lane. Go around it, or off it.' },
-  { ...LANE, name: 'Duck Crossing', item: 'turtle', pins: pinset('🥫'), movers: [[440, 222, 40, 40, 0, 156, 2.4, 0, '🦆']], tip: 'A duck is crossing the lane. Time it.' },
-  { ...LANE, name: 'Stone Heads', item: 'duck', pins: pinset('🗿'), pinMass: 1.8, tip: 'Heavy stone heads and a rubber duck. Good luck.' },
+  { ...LANE, name: 'Duck Crossing', item: 'pineapple', pins: pinset('🥫'), movers: [[440, 222, 40, 40, 0, 156, 2.4, 0, '🦆']], tip: 'A duck is crossing the lane. Time it.' },
+  { ...LANE, name: 'Stone Heads', item: 'cheese', pins: pinset('🗿'), pinMass: 1.8, tip: 'Heavy stone heads and a bouncy cheese. Good luck.' },
 ];
 
 const PITCH = { theme: 'pitch', goal: [945, 232, 35, 176], walls: [[915, 212, 65, 20], [915, 408, 65, 20]] };
 const SOCCER = [
-  { ...PITCH, name: 'Crab Keeper', items: ['burger', 'yarn', 'burger', 'puffer', 'burger'],
+  { ...PITCH, name: 'Crab Keeper', items: ['burger', 'yarn', 'burger', 'jelly', 'burger'],
     spots: [[640, 320], [600, 230], [600, 410], [540, 320], [560, 260]],
     movers: [[900, 268, 30, 56, 0, 84, 2.4, 0, '🦀']], tip: 'The crab shuffles up and down. Shoot for the gap.' },
-  { ...PITCH, name: 'Penguin Wall', items: ['yarn', 'burger', 'puffer', 'yarn', 'burger'],
+  { ...PITCH, name: 'Penguin Wall', items: ['yarn', 'burger', 'jelly', 'yarn', 'burger'],
     spots: [[520, 320], [500, 220], [500, 420], [460, 300], [440, 360]],
     movers: [[900, 262, 30, 62, 0, 84, 1.7, 1, '🐙'], [740, 230, 30, 34, 0, 150, 2.6, 0, '🐧'], [740, 376, 30, 34, 0, -150, 2.6, 0, '🐧']],
     tip: 'The penguins guard the middle. Bank it off a wall if you dare.' },
-  { ...PITCH, name: 'Gorilla in the Net', items: ['puffer', 'burger', 'yarn', 'puffer', 'burger'],
+  { ...PITCH, name: 'Gorilla in the Net', items: ['jelly', 'burger', 'yarn', 'jelly', 'burger'],
     spots: [[460, 320], [440, 200], [440, 440], [400, 320], [380, 250]],
     movers: [[896, 258, 36, 74, 0, 76, 1.4, 2, '🦍']], mills: [[680, 320, 80, 2.2]],
     tip: 'A sprinkler AND a gorilla. Curve one in with the chicken.' },
@@ -310,18 +311,18 @@ const HOOPS = [
   { ...COURT, name: 'Moving Hoop', hoop: { x: 860, y: 220, r: 26, move: [0, 200, 3.4] }, items: ['bagel', 'orange', 'bagel', 'orange', 'bagel'],
     spots: [[580, 320], [520, 200], [520, 440], [430, 320, true], [400, 210, true]],
     tip: 'The hoop slides up and down. Lead your shot.' },
-  { ...COURT, name: 'Hamster Dunk Contest', hoop: { x: 820, y: 220, r: 24, move: [70, 200, 2.6] }, items: ['hamster', 'hamster', 'orange', 'hamster', 'bagel'],
+  { ...COURT, name: 'Frisbee Dunk Contest', hoop: { x: 820, y: 220, r: 24, move: [70, 200, 2.6] }, items: ['frisbee', 'frisbee', 'orange', 'frisbee', 'bagel'],
     spots: [[560, 320], [500, 180], [500, 460], [420, 320, true], [380, 440, true]],
-    tip: 'The hoop is on the move and the hamsters are excited.' },
+    tip: 'The hoop is on the move and the frisbees want to fly.' },
 ];
 
 const SHEET = { theme: 'ice', ice: true, start: [100, 320], house: [800, 320], hog: 470, pits: [[930, 20, 50, 600]] };
 const CURLING = [
-  { ...SHEET, name: 'Tea Time', items: ['teapot', 'penguin', 'teapot', 'penguin'],
+  { ...SHEET, name: 'Tea Time', items: ['teapot', 'soap', 'teapot', 'soap'],
     tip: 'Stop on the target: 3 points for the middle, 2 and 1 further out. It must pass the red line.' },
   { ...SHEET, name: 'Guarded House', items: ['butter', 'icecube', 'butter', 'icecube'], stones: [[640, 290], [650, 355]],
     tip: 'Grey rocks are in the way. Curve around them with the chicken.' },
-  { ...SHEET, name: 'Penguin Party', items: ['penguin', 'teapot', 'icecube', 'butter'], stones: [[790, 320], [860, 250], [760, 410]], bumpers: [[600, 410, 22]],
+  { ...SHEET, name: 'Soap Opera', items: ['soap', 'teapot', 'icecube', 'butter'], stones: [[790, 320], [860, 250], [760, 410]], bumpers: [[600, 410, 22]],
     tip: 'A rock is sitting on the button. Knock it out!' },
 ];
 
@@ -342,9 +343,9 @@ const SPORTS = {
 const LINES = {
   splash: ['Splash! That one is sleeping with the fishes.', 'Glub glub. +1 stroke.', 'It did not float. +1 stroke.'],
   crack:  ['CRACK! Omelette time. +1 stroke.', 'The egg has perished. +1 stroke.', 'Scrambled. +1 stroke.'],
-  hop:    ['The frog hopped. Nobody told it to.', 'Ribbit. (The frog moved.)', 'The frog has made a choice.'],
+  hop:    ['The bean jumped. Nobody told it to.', 'Boing. (The bean moved.)', 'The bean has made a choice.'],
   squawk: ['BAWK!', 'The chicken has spoken.', 'Squeeeak!'],
-  duckwater: ['The duck is having a lovely swim.', 'Quack. Unbothered.'],
+  duckwater: ['The life ring is having a lovely float.', 'Bob bob. Unbothered.'],
   lip:    ['Lipped out! Too fast.', 'So close. Slow down a bit.'],
   splashOut: ['Splash! That one is gone.', 'Glub glub. Gone.'],
   crackOut:  ['CRACK! That egg is out.', 'Scrambled.'],
@@ -833,7 +834,7 @@ function endGame() {
     const par = HOLES.reduce((a, h) => a + h.par, 0), d = total - par;
     $('endEmoji').textContent = d <= -3 ? '🏆' : d <= 0 ? '🥇' : d <= 6 ? '🥈' : '🫠';
     $('endTitle').textContent = `${total} strokes (${fmtPar(d)})`;
-    $('endLine').textContent = d <= 0 ? 'A true master of hitting food with fish.' : d <= 6 ? 'Respectable. The duck is proud of you.' : 'The items have filed a complaint.';
+    $('endLine').textContent = d <= 0 ? 'A true master of hitting food with fish.' : d <= 6 ? 'Respectable. The watermelon is proud of you.' : 'The items have filed a complaint.';
     rows = '<tr><th>Hole</th><th></th><th>Par</th><th>You</th></tr>';
     HOLES.forEach((h, i) => rows += `<tr><th>${i + 1}. ${h.name}</th><td>${ITEMS[h.item].emoji}</td><td>${h.par}</td><td>${scores[i]}</td></tr>`);
     rows += `<tr><th>Total</th><td></td><td>${par}</td><td><b>${total}</b></td></tr>`;
@@ -841,7 +842,7 @@ function endGame() {
     const f = total / sport.max;
     $('endEmoji').textContent = f >= .6 ? '🏆' : f >= .35 ? '🥇' : f >= .15 ? '🥈' : '🫠';
     $('endTitle').textContent = `${total} points`;
-    $('endLine').textContent = f >= .6 ? 'Legendary. The penguins will sing of this.' : f >= .35 ? 'Solid work. The fish approves.' : f >= .15 ? 'Not bad for someone holding a baguette.' : 'The items have filed a complaint.';
+    $('endLine').textContent = f >= .6 ? 'Legendary. The pineapples will sing of this.' : f >= .35 ? 'Solid work. The fish approves.' : f >= .15 ? 'Not bad for someone holding a baguette.' : 'The items have filed a complaint.';
     rows = `<tr><th>${sport.unit}</th><th></th><th></th><th>Points</th></tr>`;
     LEVELS.forEach((h, i) => rows += `<tr><th>${i + 1}. ${h.name}</th><td>${[...new Set(h.items || [h.item])].map(k => ITEMS[k].emoji).join('')}</td><td></td><td>${scores[i]}</td></tr>`);
     rows += `<tr><th>Total</th><td></td><td></td><td><b>${total}</b></td></tr>`;
@@ -988,7 +989,7 @@ function resolveShot() {
       if (ball.x < hole.hog) toast("Didn't pass the red line. Removed.", 1500);
       else {
         const before = roundPts;
-        bodies.push(makeBody(ball.x, ball.y, item.emoji, item.r, ball.mass, iceDamp(item.damp), 'stone'));
+        const st = makeBody(ball.x, ball.y, item.emoji, item.r, ball.mass, iceDamp(item.damp), 'stone'); st.itemKey = item.key; bodies.push(st);
         roundPts = curlingScore();
         if (roundPts > before) { floater('+' + (roundPts - before), ball.x, ball.y - 30); sfx.sink(); }
       }
@@ -1479,12 +1480,6 @@ function woodBox(r, h) {
   if (w >= d) t.repeat.set(w / 260, 1); else { t.center.set(.5, .5); t.rotation = Math.PI / 2; t.repeat.set(d / 260, 1); }
   return mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ map: t }), wx(x + w / 2), h / 2, wz(y + d / 2));
 }
-function sprite(ch, size, parent = scene) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(ch), transparent: true }));
-  s.scale.set(size, size, 1);
-  parent.add(s);
-  return s;
-}
 function blob(parent = scene) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.renderOrder = 2;
@@ -1497,6 +1492,206 @@ function setBlob(b, x, y, r, lift = 0) {
   const s = r * 2.1 * (1 + lift / 200);
   b.scale.set(s, s, 1);
   b.material.opacity = Math.max(.25, 1 - lift / 250);
+}
+
+// ----- 3D models of the things you hit (built at radius 1, scaled to the item) -----
+const L = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+function paintTex(w, h, fn) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  fn(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+function part(g, geo, material, x = 0, y = 0, z = 0) {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+  g.add(m);
+  return m;
+}
+const speckle = (x, w, h, n, colors, size = 2) => { for (let i = 0; i < n; i++) { x.fillStyle = colors[i % colors.length]; x.fillRect(Math.random() * w, Math.random() * h, size, size); } };
+const SPH = (seg = 28) => new THREE.SphereGeometry(1, seg, Math.round(seg * .66));
+
+// things that roll over; everything else slides and spins flat
+const ROLLERS = new Set(['egg', 'melon', 'bean', 'banana', 'pumpkin', 'coconut', 'pineapple', 'yarn', 'orange']);
+const MODELS = {
+  ring(g) {
+    const t = paintTex(256, 16, (x, w, h) => { for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#ffffff' : '#e8402e'; x.fillRect(i * w / 8, 0, w / 8, h); } });
+    part(g, new THREE.TorusGeometry(.68, .32, 14, 32), L(0xffffff, { map: t })).rotation.x = Math.PI / 2;
+    const rope = part(g, new THREE.TorusGeometry(.68, .05, 6, 32), L(0xf3e3b5)); rope.rotation.x = Math.PI / 2; rope.position.y = .3;
+  },
+  egg(g) { part(g, SPH(), L(0xfff3df)).scale.set(.78, 1, .78); },
+  pizza(g) {
+    const top = paintTex(128, 128, (x, w, h) => {
+      x.fillStyle = '#ffcc4d'; x.fillRect(0, 0, w, h); speckle(x, w, h, 200, ['#ffe08a', '#f2a93b'], 3);
+      x.fillStyle = '#d83a2e'; for (const [px, py] of [[64, 30], [40, 70], [86, 66], [62, 100]]) { x.beginPath(); x.arc(px, py, 11, 0, TAU); x.fill(); }
+      x.fillStyle = '#3e8e3a'; for (let i = 0; i < 6; i++) x.fillRect(20 + Math.random() * 90, 20 + Math.random() * 90, 6, 3);
+    });
+    const crust = L(0xd99a52);
+    part(g, new THREE.CylinderGeometry(1.32, 1.32, .3, 24, 1, false, -.5, 1), crust, 0, -.02, -.6);
+    part(g, new THREE.CylinderGeometry(1.14, 1.14, .3, 24, 1, false, -.5, 1), [crust, L(0xffffff, { map: top }), crust], 0, .03, -.55);
+    g.scale.setScalar(1.5);
+  },
+  donut(g) {
+    part(g, new THREE.TorusGeometry(.62, .34, 16, 32), L(0xd9a066)).rotation.x = Math.PI / 2;
+    const icing = part(g, new THREE.TorusGeometry(.62, .3, 16, 32), L(0xff8fc0)); icing.rotation.x = Math.PI / 2; icing.position.y = .1; icing.scale.z = .8;
+    const cols = [0xffffff, 0x3db4ff, 0xffd23d, 0x7dff6a];
+    for (let i = 0; i < 22; i++) {
+      const a = Math.random() * TAU, rr = .62 + (Math.random() - .5) * .4;
+      const sp = part(g, new THREE.BoxGeometry(.14, .04, .04), L(cols[i % 4]), Math.cos(a) * rr, .38, Math.sin(a) * rr);
+      sp.rotation.y = Math.random() * TAU; sp.castShadow = false;
+    }
+  },
+  melon(g) {
+    const t = paintTex(256, 64, (x, w, h) => { x.fillStyle = '#5fbf4a'; x.fillRect(0, 0, w, h); x.fillStyle = '#21662a'; for (let i = 0; i < 10; i++) { x.beginPath(); for (let y = 0; y <= h; y += 4) x.lineTo(i * w / 10 + Math.sin(y * .4 + i) * 4, y); for (let y = h; y >= 0; y -= 4) x.lineTo(i * w / 10 + 11 + Math.sin(y * .4 + i) * 4, y); x.fill(); } });
+    part(g, SPH(), L(0xffffff, { map: t })).scale.set(1.05, .95, .95);
+  },
+  bean(g) {
+    part(g, SPH(), L(0x9a5230)).scale.set(1.3, .78, .82);
+    part(g, new THREE.SphereGeometry(.18, 10, 8), L(0xe8c9a0), .2, .55, .25).scale.set(1.6, .4, 1);
+  },
+  sock(g) {
+    const t = paintTex(16, 64, (x, w, h) => { for (let i = 0; i < 8; i++) { x.fillStyle = ['#ff6b6b', '#ffffff', '#4dabf7', '#ffffff'][i % 4]; x.fillRect(0, i * h / 8, w, h / 8); } });
+    const m = L(0xffffff, { map: t });
+    part(g, new THREE.CylinderGeometry(.36, .34, 1.2, 14), m, -.25, .1, 0).rotation.z = -.15;
+    const foot = part(g, new THREE.CylinderGeometry(.34, .36, .9, 14), m, .2, -.48, 0); foot.rotation.z = Math.PI / 2;
+    part(g, new THREE.SphereGeometry(.36, 14, 10), L(0xff6b6b), .62, -.48, 0);
+    part(g, new THREE.SphereGeometry(.35, 14, 10), L(0xff6b6b), -.28, -.48, 0);
+    g.rotation.z = Math.PI / 2 - .2;
+  },
+  cheese(g) {
+    const t = paintTex(128, 64, (x, w, h) => { x.fillStyle = '#ffcf3d'; x.fillRect(0, 0, w, h); x.fillStyle = '#e8a91a'; for (let i = 0; i < 9; i++) { x.beginPath(); x.arc(Math.random() * w, Math.random() * h, 4 + Math.random() * 6, 0, TAU); x.fill(); } });
+    const m = L(0xffffff, { map: t });
+    part(g, new THREE.CylinderGeometry(1.3, 1.3, .9, 24, 1, false, -.6, 1.2), [m, m, m]).position.z = -.65;
+  },
+  banana(g) {
+    const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-1, .35, 0), new THREE.Vector3(0, -.55, 0), new THREE.Vector3(1, .35, 0));
+    part(g, new THREE.TubeGeometry(curve, 24, .3, 12), L(0xffe14d));
+    part(g, new THREE.CylinderGeometry(.06, .1, .25, 8), L(0x6b4a1f), -1.02, .45, 0).rotation.z = .6;
+    part(g, new THREE.SphereGeometry(.12, 8, 6), L(0x4a3415), 1, .35, 0);
+  },
+  pumpkin(g) {
+    const t = paintTex(256, 32, (x, w, h) => { x.fillStyle = '#ff8a1f'; x.fillRect(0, 0, w, h); x.fillStyle = '#d9640f'; for (let i = 0; i < 12; i++) x.fillRect(i * w / 12, 0, 6, h); });
+    part(g, SPH(), L(0xffffff, { map: t })).scale.set(1, .8, 1);
+    part(g, new THREE.CylinderGeometry(.1, .16, .4, 8), L(0x3d7a2a), 0, .9, 0).rotation.z = .3;
+  },
+  coconut(g) {
+    const t = paintTex(128, 64, (x, w, h) => { x.fillStyle = '#6b4423'; x.fillRect(0, 0, w, h); x.strokeStyle = 'rgba(40,20,5,.6)'; for (let i = 0; i < 90; i++) { const px = Math.random() * w, py = Math.random() * h; x.beginPath(); x.moveTo(px, py); x.lineTo(px + 6, py + (Math.random() - .5) * 4); x.stroke(); } });
+    part(g, SPH(), L(0xffffff, { map: t })).scale.set(1, .92, .95);
+    for (let i = 0; i < 3; i++) part(g, new THREE.SphereGeometry(.12, 8, 6), L(0x2a1608), Math.cos(i * 2.1) * .25, .9, Math.sin(i * 2.1) * .25);
+  },
+  pineapple(g) {
+    const t = paintTex(128, 128, (x, w, h) => {
+      x.fillStyle = '#e8a52a'; x.fillRect(0, 0, w, h); x.strokeStyle = '#9a5a14'; x.lineWidth = 3;
+      for (let i = -w; i < w * 2; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + h, h); x.moveTo(i, 0); x.lineTo(i - h, h); x.stroke(); }
+      x.fillStyle = '#7a4410'; for (let i = 0; i < 64; i++) x.fillRect((i % 8) * 16 + 6, Math.floor(i / 8) * 16 + 6, 3, 3);
+    });
+    part(g, SPH(), L(0xffffff, { map: t })).scale.set(.72, .95, .72);
+    for (let i = 0; i < 6; i++) {
+      const leaf = part(g, new THREE.ConeGeometry(.14, .8, 6), L(0x3c9d3f), Math.cos(i) * .12, 1.15, Math.sin(i) * .12);
+      leaf.rotation.set(Math.sin(i * 1.7) * .5, 0, Math.cos(i * 1.7) * .5);
+    }
+  },
+  burger(g) {
+    const bun = L(0xd9953f);
+    part(g, new THREE.CylinderGeometry(.95, .88, .32, 24), bun, 0, -.48, 0);
+    part(g, new THREE.CylinderGeometry(1, 1, .26, 24), L(0x5a3222), 0, -.2, 0);
+    part(g, new THREE.BoxGeometry(1.5, .05, 1.5), L(0xffc935), 0, -.04, 0).rotation.y = Math.PI / 4;
+    part(g, new THREE.CylinderGeometry(1.04, 1.04, .07, 24), L(0x5cc24a), 0, .03, 0);
+    part(g, new THREE.SphereGeometry(.98, 24, 12, 0, TAU, 0, Math.PI / 2), bun, 0, .06, 0).scale.y = .62;
+    for (let i = 0; i < 10; i++) { const a = i * 2.4, rr = .25 + (i % 3) * .2; part(g, new THREE.SphereGeometry(.06, 6, 4), L(0xfff3d6), Math.cos(a) * rr, .62 - rr * .25, Math.sin(a) * rr).scale.set(1.5, .6, 1); }
+  },
+  jelly(g) {
+    part(g, new THREE.CylinderGeometry(.7, 1, 1.1, 28), new THREE.MeshPhongMaterial({ color: 0xf2b542, shininess: 80 }), 0, -.1, 0);
+    part(g, new THREE.CylinderGeometry(.71, .74, .16, 28), new THREE.MeshPhongMaterial({ color: 0x8a4b14, shininess: 90 }), 0, .5, 0);
+    part(g, new THREE.SphereGeometry(.16, 10, 8), L(0xd92d4a), 0, .66, 0);
+  },
+  yarn(g) {
+    const t = paintTex(128, 128, (x, w, h) => { x.fillStyle = '#ff6fa3'; x.fillRect(0, 0, w, h); x.strokeStyle = '#c93d74'; x.lineWidth = 2; for (let i = 0; i < 26; i++) { x.beginPath(); for (let px = 0; px <= w; px += 4) x.lineTo(px, i * 5 + Math.sin(px * .08 + i) * 6); x.stroke(); } });
+    part(g, SPH(), L(0xffffff, { map: t }));
+    const strand = new THREE.CatmullRomCurve3([new THREE.Vector3(.8, .5, 0), new THREE.Vector3(1.2, .2, .3), new THREE.Vector3(1.4, -.6, .2)]);
+    part(g, new THREE.TubeGeometry(strand, 10, .06, 6), L(0xff6fa3));
+  },
+  orange(g) {
+    const t = paintTex(128, 64, (x, w, h) => { x.fillStyle = '#ff9a1f'; x.fillRect(0, 0, w, h); speckle(x, w, h, 500, ['#f28a12', '#ffb04a'], 2); });
+    part(g, SPH(), L(0xffffff, { map: t }));
+    part(g, new THREE.SphereGeometry(.22, 8, 6), L(0x3c9d3f), .15, .98, 0).scale.set(1.6, .3, .8);
+  },
+  bagel(g) {
+    part(g, new THREE.TorusGeometry(.6, .38, 16, 32), L(0xd9a35a), 0, 0, 0).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 26; i++) { const a = Math.random() * TAU, rr = .6 + (Math.random() - .5) * .4; part(g, new THREE.SphereGeometry(.05, 6, 4), L(0xfff3d6), Math.cos(a) * rr, .36, Math.sin(a) * rr).scale.set(1.6, .5, 1); }
+  },
+  frisbee(g) {
+    const t = paintTex(128, 128, (x, w, h) => { x.fillStyle = '#2ec4ff'; x.fillRect(0, 0, w, h); x.strokeStyle = '#ffffff'; x.lineWidth = 6; x.beginPath(); x.arc(64, 64, 34, 0, TAU); x.stroke(); x.beginPath(); x.arc(64, 64, 14, 0, TAU); x.stroke(); });
+    const blue = L(0x1fa8e0);
+    part(g, new THREE.CylinderGeometry(1, 1.05, .2, 32), [blue, L(0xffffff, { map: t }), blue]);
+    part(g, new THREE.TorusGeometry(1.02, .1, 8, 32), blue).rotation.x = Math.PI / 2;
+  },
+  teapot(g) {
+    const white = new THREE.MeshPhongMaterial({ color: 0xf4f7fb, shininess: 60 }), blue = L(0x3d7fd9);
+    part(g, SPH(), white, 0, -.1, 0).scale.set(.85, .7, .85);
+    part(g, new THREE.CylinderGeometry(.86, .86, .12, 24), blue, 0, -.1, 0);
+    part(g, new THREE.CylinderGeometry(.32, .45, .16, 20), blue, 0, .55, 0);
+    part(g, new THREE.SphereGeometry(.12, 10, 8), blue, 0, .68, 0);
+    part(g, new THREE.CylinderGeometry(.07, .15, .7, 10), white, .9, .12, 0).rotation.z = -.9;
+    const handle = part(g, new THREE.TorusGeometry(.32, .07, 8, 16, Math.PI), white, -.82, -.05, 0); handle.rotation.z = Math.PI / 2;
+  },
+  soap(g) {
+    const pink = new THREE.MeshPhongMaterial({ color: 0xff9ec7, shininess: 70 });
+    part(g, new THREE.BoxGeometry(1.6, .6, 1.05), pink);
+    part(g, new THREE.BoxGeometry(1.45, .1, .9), new THREE.MeshPhongMaterial({ color: 0xffb8d6, shininess: 90 }), 0, .32, 0);
+    const bub = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: .65, shininess: 100 });
+    for (const [x, z, r] of [[-.4, .2, .22], [.1, -.15, .16], [.45, .25, .12], [.3, -.35, .1]]) part(g, new THREE.SphereGeometry(r, 12, 8), bub, x, .45 + r * .5, z);
+  },
+  butter(g) {
+    part(g, new THREE.BoxGeometry(1.9, .62, .8), L(0xffe680));
+    part(g, new THREE.BoxGeometry(1.05, .66, .84), L(0xffffff), -.45, 0, 0);
+    part(g, new THREE.BoxGeometry(.5, .67, .85), L(0x3d7fd9), -.45, 0, 0);
+  },
+  icecube(g) {
+    part(g, new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshPhongMaterial({ color: 0xbfe9ff, transparent: true, opacity: .72, shininess: 120, specular: 0xffffff }));
+    part(g, new THREE.BoxGeometry(.8, .8, .8), new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: .35 }));
+  },
+  rock(g) { // a real curling stone
+    const t = paintTex(128, 32, (x, w, h) => { x.fillStyle = '#8d939b'; x.fillRect(0, 0, w, h); speckle(x, w, h, 500, ['#6f757d', '#b4b9bf', '#585d63'], 2); });
+    const granite = L(0xffffff, { map: t });
+    part(g, new THREE.CylinderGeometry(.92, 1, .75, 28), granite);
+    part(g, new THREE.CylinderGeometry(.82, .92, .1, 28), L(0x5d6268), 0, .42, 0);
+    part(g, new THREE.CylinderGeometry(.1, .12, .3, 10), L(0x333333), 0, .58, 0);
+    part(g, new THREE.BoxGeometry(.9, .16, .2), L(0xd62828), .3, .74, 0);
+  },
+};
+function itemModel(key) {
+  const outer = new THREE.Group(), inner = new THREE.Group();
+  outer.add(inner);
+  (MODELS[key] || MODELS.orange)(inner);
+  return outer;
+}
+
+// ----- emoji with thickness: a stack of cut-out slices, solid at the front and back -----
+const sliceGeo = new THREE.PlaneGeometry(1, 1);
+const sliceMats = new Map();
+function thickEmoji(ch, depth = .14) {
+  if (!sliceMats.has(ch)) {
+    const map = emojiTex(ch);
+    sliceMats.set(ch, [
+      new THREE.MeshBasicMaterial({ map, alphaTest: .5, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map, alphaTest: .5, side: THREE.DoubleSide, color: 0x7d7d7d }),
+    ]);
+  }
+  const [face, side] = sliceMats.get(ch), g = new THREE.Group(), N = 9;
+  for (let i = 0; i < N; i++) {
+    const edge = i === 0 || i === N - 1, m = new THREE.Mesh(sliceGeo, edge ? face : side);
+    m.position.z = (i / (N - 1) - .5) * depth; m.castShadow = i === 0;
+    g.add(m);
+  }
+  return g;
+}
+// turn something to face the camera, leaning back a little so it reads from above
+function faceCamera(o) {
+  const dx = camera.position.x - o.position.x, dz = camera.position.z - o.position.z;
+  o.rotation.order = 'YXZ';
+  o.rotation.y = Math.atan2(dx, dz);
+  o.rotation.x = -Math.atan2(camera.position.y - o.position.y, Math.hypot(dx, dz)) * .55;
 }
 
 const THEMES = {
@@ -1604,11 +1799,11 @@ function build3D() {
   level3D.userData.movers = hole.movers.map(m => {
     if (m[8]) {
       const size = Math.max(m[2], m[3]) * 1.15;
-      const s = sprite(m[8], size, level3D); s.center.set(.5, .08);
+      const s = thickEmoji(m[8]); s.scale.setScalar(size); level3D.add(s);
       return { m, s, sh: blob(level3D), size };
     }
     const box = woodBox(moverRect(m, 0), 32);
-    const s = sprite('🧦', 22, level3D);
+    const s = thickEmoji('🧦'); s.scale.setScalar(26); level3D.add(s);
     return { m, box, s };
   });
 
@@ -1646,10 +1841,7 @@ function build3D() {
   }
 
   // the item, its shadow and the club
-  level3D.userData.ball = sprite(item.emoji, 32, level3D);
   level3D.userData.ballShadow = blob(level3D);
-  level3D.userData.club = sprite('🥖', 40, level3D);
-  level3D.userData.swing = sprite('🥖', 44, level3D);
   level3D.userData.pct = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTex('0%'), transparent: true, depthTest: false }));
   level3D.userData.pct.scale.set(120, 30, 1); level3D.userData.pct.renderOrder = 5; level3D.add(level3D.userData.pct);
   level3D.userData.floaters = new Map();
@@ -1805,7 +1997,10 @@ function drawAim() {
   ctx.restore();
 }
 
-function syncSprite(s, x, y, size, h) { place(s, x, y, h); s.scale.set(size, size, 1); }
+const UP = new THREE.Vector3(0, 1, 0), rollAxis = new THREE.Vector3();
+// how high each model's center sits when resting (in item radii)
+const HALF = { ring: .34, egg: .95, pizza: .28, donut: .42, bean: .78, sock: .5, cheese: .45, banana: .62, pumpkin: .8, coconut: .92,
+  pineapple: .95, burger: .64, jelly: .68, bagel: .38, frisbee: .14, teapot: .62, soap: .32, butter: .32, icecube: .7, rock: .38 };
 
 function draw() {
   const U = level3D.userData;
@@ -1820,8 +2015,9 @@ function draw() {
   for (const { blades, m } of U.mills) blades.rotation.y = -m[3] * time;
   for (const o of U.movers) {
     const r = moverRect(o.m, time), cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2;
-    if (o.box) { place(o.box, cx, cy, 16); place(o.s, cx, cy, 44); }
-    else { place(o.s, cx, cy, Math.abs(Math.sin(time * 9 + o.m[7])) * 3); setBlob(o.sh, cx, cy, o.size * .4); }
+    if (o.box) { place(o.box, cx, cy, 16); place(o.s, cx, cy, 46); }
+    else { place(o.s, cx, cy, o.size * .46 + Math.abs(Math.sin(time * 9 + o.m[7])) * 3); setBlob(o.sh, cx, cy, o.size * .4); }
+    faceCamera(o.s);
   }
   if (U.flag) {
     const p = U.flag.geometry.attributes.position;
@@ -1836,56 +2032,85 @@ function draw() {
     if (b.gone) continue;
     seen.add(b);
     let o = sprites.get(b);
-    if (!o) { o = { sprite: sprite(b.emoji, 10), shadow: blob() }; sprites.set(b, o); }
-    const size = b.r * (b.kind === 'pin' ? 3 : 2.6);
-    if (b.down) {
-      syncSprite(o.sprite, b.x, b.y, size, size * .3);
-      o.sprite.material.rotation = b.fall + Math.PI / 2; o.sprite.material.opacity = .55;
+    if (!o) {
+      const obj = b.kind === 'pin' ? thickEmoji(b.emoji) : itemModel(b.kind === 'rock' ? 'rock' : b.itemKey);
+      obj.rotation.order = 'YXZ'; scene.add(obj);
+      o = { sprite: obj, shadow: blob() }; sprites.set(b, o);
+    }
+    const obj = o.sprite;
+    if (b.kind === 'pin') {
+      const size = b.r * 3;
+      obj.scale.setScalar(size);
+      if (b.down) { place(obj, b.x, b.y, 3); obj.rotation.set(-Math.PI / 2, -(b.fall + Math.PI / 2), 0); }
+      else { place(obj, b.x, b.y, size * .46); obj.rotation.set(0, 0, 0); faceCamera(obj); }
     } else {
-      syncSprite(o.sprite, b.x, b.y, size, size * .45);
-      o.sprite.material.rotation = 0; o.sprite.material.opacity = 1;
+      const sc = b.r * 1.15;
+      obj.scale.setScalar(sc);
+      place(obj, b.x, b.y, (HALF[b.kind === 'rock' ? 'rock' : b.itemKey] || 1) * sc);
+      obj.rotation.y -= Math.hypot(b.vx, b.vy) * drawDt / b.r * .3;
     }
     setBlob(o.shadow, b.x, b.y, b.r);
   }
   for (const [b, o] of sprites) if (!seen.has(b)) { scene.remove(o.sprite); scene.remove(o.shadow); sprites.delete(b); }
 
   // the item
+  if (U.ballItem !== item) {
+    if (U.ball) level3D.remove(U.ball);
+    U.ball = itemModel(item.key); level3D.add(U.ball); U.ballItem = item;
+  }
   const bs = U.ball, bsh = U.ballShadow;
   let lift = liftOf(), scale = 1;
   if (state === 'sinking') { sinkAnim += 1 / 60; scale = Math.max(0, 1 - sinkAnim * 2.5); ball.x += (hole.cup[0] - ball.x) * .2; ball.y += (hole.cup[1] - ball.y) * .2; lift = -sinkAnim * 30; }
   bs.visible = bsh.visible = !ball.gone && scale > 0;
   if (bs.visible) {
-    bs.material.map = emojiTex(item.emoji);
     const inWater = item.floats && hole.water.some(r => inRect(ball.x, ball.y, r));
-    const size = item.r * 2.7 * scale, q = ball.squash || 0;
-    place(bs, ball.x, ball.y, size * .46 + lift + (inWater ? Math.sin(time * 6) * 2 - 4 : 0));
-    bs.scale.set(size * (1 + q * .25), size * (1 - q * .25), 1);
-    bs.material.rotation = item.hops || item.floats ? 0 : -ball.rot;
+    const sc = item.r * 1.15 * scale, q = ball.squash || 0;
+    place(bs, ball.x, ball.y, (HALF[item.key] || 1) * sc + lift + (inWater ? Math.sin(time * 6) * 2 - 3 : 0));
+    bs.scale.set(sc * (1 + q * .25), sc * (1 - q * .25), sc * (1 + q * .25));
+    // roll round things, spin flat things, tumble anything in the air
+    const sp = Math.hypot(ball.vx, ball.vy), inner = bs.children[0];
+    if (sp > 1 && (ball.moving || ball.air > 0)) {
+      const roll = ROLLERS.has(item.key);
+      if (roll || (ball.air > 0 && !hole.lob)) inner.rotateOnWorldAxis(rollAxis.set(ball.vy / sp, 0, -ball.vx / sp), sp * drawDt / sc * (roll ? 1 : .5));
+      else inner.rotateOnWorldAxis(UP, -sp * drawDt / sc * (ball.air > 0 ? 1.2 : .35));
+    }
+    if (!ROLLERS.has(item.key) && !(ball.air > 0) && !hole.lob) { // flat things settle back flat
+      const e = new THREE.Euler().setFromQuaternion(inner.quaternion, 'YXZ');
+      e.x *= .85; e.z *= .85; inner.quaternion.setFromEuler(e);
+    }
     setBlob(bsh, ball.x, ball.y, item.r * scale, Math.max(0, lift));
   }
 
   // the club winding up, the swing, and the power label
   const club = CLUBS[clubIdx];
-  U.club.visible = !!(aim && state === 'play');
+  const swapEmoji = (slot, ch, size) => {
+    if (U[slot + 'Ch'] !== ch) {
+      if (U[slot]) level3D.remove(U[slot]);
+      U[slot] = thickEmoji(ch, .2); U[slot].rotation.order = 'YXZ'; U[slot].scale.setScalar(size);
+      level3D.add(U[slot]); U[slot + 'Ch'] = ch;
+    }
+    return U[slot];
+  };
+  swapEmoji('club', club.emoji, 44).visible = !!(aim && state === 'play');
   U.pct.visible = U.club.visible;
   if (U.club.visible) {
     const { ang, power } = aimVec(), d = item.r + 24 + power * 34;
-    U.club.material.map = emojiTex(club.emoji);
     place(U.club, ball.x - Math.cos(ang) * d, ball.y - Math.sin(ang) * d, 26 + power * 10);
-    U.club.material.rotation = (club.chicken ? 0 : Math.PI / 2) - power * .6;
+    faceCamera(U.club);
+    U.club.rotation.z = (club.chicken ? 0 : Math.PI / 2) - power * .6;
     U.pct.material.map = textTex(Math.round(power * 100) + '%');
     place(U.pct, ball.x, ball.y, item.r * 2.3 + 34);
   }
-  U.swing.visible = !!swing;
+  swapEmoji('swing', (swing ? swing.club : club).emoji, 46).visible = !!swing;
   if (swing) {
     swing.t += 1 / 60;
     const k = swing.t / .35;
     if (k > 1) { swing = null; U.swing.visible = false; }
     else {
-      U.swing.material.map = emojiTex(swing.club.emoji);
-      U.swing.material.opacity = 1 - k;
+      U.swing.scale.setScalar(46 * (1 - k * .7));
       place(U.swing, ball.last[0] - Math.cos(swing.ang) * (30 - k * 40), ball.last[1] - Math.sin(swing.ang) * (30 - k * 40), 26);
-      U.swing.material.rotation = Math.PI / 2 - k * 2;
+      faceCamera(U.swing);
+      U.swing.rotation.z = Math.PI / 2 - k * 2.4;
     }
   }
 
