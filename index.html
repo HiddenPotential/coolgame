@@ -1705,7 +1705,11 @@ const THEMES = {
 function build3D() {
   if (level3D) {
     scene.remove(level3D);
-    level3D.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map && !sharedTex.has(o.material.map)) o.material.map.dispose(); });
+    level3D.traverse(o => {
+      if (o.geometry && o.geometry !== sliceGeo) o.geometry.dispose();
+      // some models use one material per face, so material can be an array
+      for (const m of [].concat(o.material || [])) if (m.map && !sharedTex.has(m.map)) m.map.dispose();
+    });
   }
   for (const s of sprites.values()) { scene.remove(s.sprite); scene.remove(s.shadow); }
   sprites.clear();
