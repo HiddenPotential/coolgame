@@ -37,6 +37,7 @@ Slide past the cup and the crowd groans. The 🏳️ Give up button refuses to l
 and the score card counts how many times you tried.
 
 Every troll has a limit, so every hole can be finished, and the mercy rule ends a hole at 12 strokes.
+Each course has its own chiptune, made in the browser with Web Audio, that speeds up as your rage climbs and goes quiet while the ball teeters.
 A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue (and gets meaner as the meter climbs).
 
 You hit a real 3D golf ball with:
@@ -53,5 +54,5 @@ You hit a real 3D golf ball with:
 Open `index.html` in a browser. No build step. The 3D view uses [three.js](https://threejs.org/) from a CDN, so you need an internet connection.
 
 - Drag anywhere on the course to pull back and aim, then let go to swing.
-- Keys `1`–`4` pick a club, `M` mutes, `Esc` cancels a shot, `C` (or 🎥) switches between the overview and a camera that follows the ball, `P` (or 👾) turns the pixel look on and off.
+- Keys `1`–`4` pick a club, `M` mutes everything, `N` (or 🎵) turns the music on and off, `Esc` cancels a shot, `C` (or 🎥) switches between the overview and a camera that follows the ball, `P` (or 👾) turns the pixel look on and off.
 - Jump straight to a hole with `?course=moon&hole=5` (courses: `meadow`, `desert`, `moon`).
