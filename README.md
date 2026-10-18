@@ -50,6 +50,19 @@ More trolls can turn up on any hole:
 - ⚡ **Power cut:** the lights go out for a shot. You get a spotlight on the ball and a blinking light on the flag.
 - 🪞 **Mirror mode:** left and right are flipped for one shot. The aim arrow shows where it will really go.
 
+Even more trolls:
+- 🌪️ **Tornado:** sucks the rolling ball up, spins it round and spits it out somewhere else.
+- 🪨 **Boulder:** when your ball stops, a giant boulder comes rolling at it. Shoot before it gets there!
+- 💻 **Fake crash:** the game "crashes" with an error screen (stop code: SKILL_ISSUE)… then says jk.
+- 📉 **Inflation:** par changes mid-hole, usually downwards.
+
+Some holes also have gadgets:
+- 🌀 **Portals:** roll into the orange one and pop out of the blue one (or the other way), same speed.
+- 🛹 **Jump ramps:** hit one fast and the ball flies over water, quicksand and the void. Hit it slow and it just rolls over.
+
+**Gary the Caddie** 🧢 introduces every hole with some deeply unhelpful advice, and at the end of a round there's an
+**awards ceremony** based on what happened to you (Most Spaghettified, Dog's Best Friend, Indiana Golf, Thinking With Portals…).
+
 No two rounds play the same: every time a hole loads it secretly adds a random extra troll or two (wind, the eagle,
 a cup that moves, the hand, the mole, the lid, VAR, the UFO, or any of the new trolls above), and usually rolls a random condition, shown on the
 intro card and next to the hole name: 🧊 icy green, 🍯 sticky green, 🏀 bouncy walls, 🫨 shaky hands, 🎲 random power,
