@@ -667,7 +667,9 @@ function noise(dur, vol = .2, freq = 1000) {
 }
 // ---------- Music ----------
 // A little chiptune loop for each course, played by the same synth as the sound effects.
-// It speeds up as the rage meter climbs, and holds its breath while the ball teeters on the lip.
+// It follows the rage meter: it speeds up as rage climbs, and every quarter of the meter it gets
+// angrier (busier drums, a pumping bass, a key change up, a harsher doubled lead, then an evil
+// harmony and distortion). It holds its breath while the ball teeters on the lip.
 // Tunes are 4 bars of 16 steps: a note name plays, '.' is a rest.
 const TUNES = {
   meadow: { bpm: 132, lead: 'square', vol: .045, echo: false,
@@ -688,10 +690,17 @@ const freqOf = n => { const m = n.match(/^([A-G][#b]?)(\d)$/); return 440 * Math
 for (const t of Object.values(TUNES)) t.steps = t.melody.flatMap(bar => bar.split(' ').map(x => x === '.' ? 0 : freqOf(x)));
 
 let musicOn = (() => { try { return localStorage.getItem('wackyMusic') !== 'off'; } catch (e) { return true; } })();
-let musicBus = null, musicEcho = null, musicNoise = null, musicStep = 0, musicNext = 0;
+let musicBus = null, musicEcho = null, musicNoise = null, musicDrive = null, musicStep = 0, musicNext = 0, musicStage = 0;
+// calm, annoyed, angry, furious
+const rageStage = () => rage < 25 ? 0 : rage < 50 ? 1 : rage < 75 ? 2 : 3;
 function startMusic() {
   if (musicBus || !ac) return;
   musicBus = ac.createGain(); musicBus.gain.value = 0; musicBus.connect(ac.destination);
+  // a distorted copy of the music that fades in when you're angry
+  const shaper = ac.createWaveShaper(), curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(x * 6) * .7; }
+  shaper.curve = curve; musicDrive = ac.createGain(); musicDrive.gain.value = 0;
+  musicBus.connect(shaper).connect(musicDrive).connect(ac.destination);
   // a soft echo for the moon tune
   musicEcho = ac.createDelay(); musicEcho.delayTime.value = .32;
   const fb = ac.createGain(); fb.gain.value = .35;
@@ -719,6 +728,12 @@ function mDrum(t, kind) {
     return;
   }
   const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), hat = kind === 'hat', dur = hat ? .04 : .12;
+  if (kind === 'crash') { // a long splash of noise when the music gets angrier
+    f.type = 'highpass'; f.frequency.value = 3500;
+    g.gain.setValueAtTime(.16, t); g.gain.exponentialRampToValueAtTime(.001, t + .9);
+    s.buffer = musicNoise; s.loop = true; s.connect(f).connect(g).connect(musicBus); s.start(t); s.stop(t + .92);
+    return;
+  }
   f.type = hat ? 'highpass' : 'bandpass'; f.frequency.value = hat ? 7000 : 1800;
   g.gain.setValueAtTime(hat ? .05 : .12, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
   s.buffer = musicNoise; s.connect(f).connect(g).connect(musicBus); s.start(t); s.stop(t + dur + .01);
@@ -729,15 +744,31 @@ function musicTick() {
   const on = musicOn && !muted && !document.hidden;
   musicBus.gain.setTargetAtTime(on && !teetering ? 1 : 0, ac.currentTime, teetering ? .03 : .15);
   if (!on) { musicNext = ac.currentTime + .1; return; }
-  const stepLen = 60 / (tune.bpm * (1 + rage / 250)) / 4; // 16th notes, up to 40% faster at full rage
+  const stepLen = 60 / (tune.bpm * (1 + rage / 220)) / 4; // 16th notes, up to 45% faster at full rage
   while (musicNext < ac.currentTime + .15) {
     const t = musicNext, i = musicStep % 64, k = i % 16, bar = Math.floor(i / 16);
-    const f = tune.steps[i];
-    if (f) mNote(t, f, stepLen * 1.8, tune.lead, tune.vol, tune.echo);
-    if (k % 4 === 0) mNote(t, freqOf(tune.bass[bar]) * (k % 8 ? 2 : 1), stepLen * 3, 'triangle', .11, false);
-    if (tune.kick.includes(k)) mDrum(t, 'kick');
-    if (tune.snare.includes(k)) mDrum(t, 'snare');
-    if (tune.hat.includes(k)) mDrum(t, 'hat');
+    // the mood only changes at the start of a bar, so the music stays in time
+    if (k === 0) {
+      const st = rageStage();
+      if (st > musicStage) mDrum(t, 'crash');
+      musicStage = st;
+      musicDrive.gain.setTargetAtTime([0, 0, .12, .3][st], t, .3);
+    }
+    const st = musicStage, up = Math.pow(2, [0, 0, 1, 2][st] / 12); // angrier = a key change up
+    const f = tune.steps[i] * up;
+    if (f) {
+      mNote(t, f, stepLen * 1.8, tune.lead, tune.vol, tune.echo);
+      if (st >= 2) mNote(t, f * 1.012, stepLen * 1.6, 'sawtooth', tune.vol * .55, false); // a harsh, detuned double
+      if (st === 3) mNote(t, f * Math.pow(2, 6 / 12) / 2, stepLen * 1.6, 'square', tune.vol * .45, false); // an evil tritone below
+    }
+    const root = freqOf(tune.bass[bar]) * up;
+    if (st === 0 ? k % 4 === 0 : k % 2 === 0) { // the bass starts pumping eighths once you're annoyed
+      const octave = st === 0 ? (k % 8 ? 2 : 1) : (k % 4 ? 2 : 1);
+      mNote(t, root * octave, stepLen * (st ? 1.6 : 3), st === 3 ? 'sawtooth' : 'triangle', st === 3 ? .07 : .11, false);
+    }
+    if (tune.kick.includes(k) || (st >= 2 && k % 4 === 0)) mDrum(t, 'kick');
+    if (tune.snare.includes(k) || (st === 3 && i >= 60)) mDrum(t, 'snare'); // a snare roll into the loop at full rage
+    if (tune.hat.includes(k) || (st === 1 && k % 2 === 0) || st >= 2) mDrum(t, 'hat');
     musicStep++; musicNext += stepLen;
   }
 }
