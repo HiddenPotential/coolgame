@@ -78,8 +78,8 @@ Some holes also have gadgets:
 
 No two rounds play the same: every time a hole loads it secretly adds a random extra troll or two (wind, the eagle,
 a cup that moves, the hand, the mole, the lid, VAR, the UFO, or any of the new trolls above), and usually rolls a random condition, shown on the
-intro card and next to the hole name: 🧊 icy green, 🍯 sticky green, 🏀 bouncy walls, 🫨 shaky hands, 🎲 random power,
-🌬️ a steady breeze or 😵 hiccups. The intro hints whether something extra is hiding. It doesn't always tell the truth.
+intro card and next to the hole name: 🧊 icy green, 🍯 sticky green, 🏀 bouncy walls, 🫨 shaky hands, 🎲 random power
+or 🌬️ a steady breeze. The intro hints whether something extra is hiding. It doesn't always tell the truth.
 
 Slide past the cup and the crowd groans. The 🏳️ Give up button refuses to let you quit (and hops somewhere else),
 and the score card counts how many times you tried.
