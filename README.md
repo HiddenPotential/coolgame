@@ -56,6 +56,14 @@ Even more trolls:
 - 💻 **Fake crash:** the game "crashes" with an error screen (stop code: SKILL_ISSUE)… then says jk.
 - 📉 **Inflation:** par changes mid-hole, usually downwards.
 
+The plants are out to get you too (grass and trees on the meadow, dry scrub and cactus in the desert, alien moss on the moon):
+- 🌾 **Rough:** patches of tall grass near the cup slow the ball and make it wander off line.
+- 🌳 **Roots:** knobbly roots across the approach bump the ball sideways when it rolls over them.
+- 🌱 **Sprouting weed:** a flower (or a baby cactus, or a space sprout) pops up right in front of the rolling ball, and it bounces off.
+- 🪴 **Venus flytrap:** a giant flytrap grows next to the cup. Come near it slowly and it snaps the ball up, chews, and spits it out the wrong way (twice, then it naps).
+
+Rough and roots move around every time a hole loads; the weed and the flytrap are part of the random troll pool.
+
 Some holes also have gadgets:
 - 🌀 **Portals:** roll into the orange one and pop out of the blue one (or the other way), same speed.
 - 🛹 **Jump ramps:** hit one fast and the ball flies over water, quicksand and the void. Hit it slow and it just rolls over.

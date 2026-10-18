@@ -598,6 +598,20 @@ const LINES = {
   // once the rage meter is high the commentator gets meaner
   meantaunt: ['Have you considered bowling?', 'The windmill is laughing at you.', 'A pigeon could do this. A pigeon did, earlier.',
               'Breathe in. Breathe out. Miss again.', 'Rage looks good on you.', 'Wow. Just wow.', 'Are you hitting it with your eyes closed?'],
+  rough_grass:  ['🌾 Into the rough. It is wandering about.', '🌾 Tall grass! The ball has gone for a nature walk.'],
+  rough_desert: ['🌾 Dry scrub! The ball is stuck in the bushes.', '🌾 Tumbleweed country. It is drifting.'],
+  rough_moon:   ['🌾 Alien moss! It tickles the ball off course.', '🌾 Moon moss. Nobody knows how it grows here.'],
+  root_grass:   ['🌳 A tree root! It bounced off line.', '🌳 Roots on the green. The groundskeeper has given up.'],
+  root_desert:  ['🌳 A desert root! Bonk.', '🌳 Dry roots everywhere. The ball tripped.'],
+  root_moon:    ['🌳 An alien tendril! It flicked the ball.', '🌳 Something with roots lives on the moon. It is rude.'],
+  weed_grass:   ['🌱 A flower sprouted right in front of it. Of course.', '🌱 Weed! Out of nowhere!'],
+  weed_desert:  ['🌱 A baby cactus just sprouted. Right there.', '🌱 Desert bloom! Terrible timing.'],
+  weed_moon:    ['🌱 An alien sprout popped up! Rude.', '🌱 Space weed. It grew in a second.'],
+  weedhit:      ['🌱 Bounced off the weed. Nature wins.', '🌱 The flower says no.'],
+  flytrap_grass:  ['🪴 CHOMP! The Venus flytrap ate it.', '🪴 The flytrap was hungry.'],
+  flytrap_desert: ['🪴 CHOMP! A desert flytrap. They exist now.', '🪴 Crunch. The flytrap found lunch.'],
+  flytrap_moon:   ['🪴 CHOMP! An alien flytrap swallowed it.', '🪴 The moon plant is eating your ball.'],
+  flytrapfull:  ['🪴 The flytrap is full. It is having a nap.', '🪴 Burp. The flytrap is done eating.'],
   portal:   ['🌀 Through the portal!', '🌀 Now you are thinking with portals.'],
   ramp:     ['🛹 Sick jump!', '🛹 It flies! Briefly.', '🛹 Air time!'],
   tornado:  ['🌪️ TORNADO! Hold onto your… ball.', '🌪️ A tornado. On a golf course. Obviously.'],
@@ -783,6 +797,7 @@ function prepLevel(i) {
   setItem(hole.item);
   placeBall(...hole.start);
   setupTrolls();
+  setupPlants(); paintPlants();
   setupChunks();
   build3D();
   updateHud();
@@ -1143,6 +1158,8 @@ function step(dt) {
   for (const m of hole.movers) collideRect(moverRect(m, time), moverVel(m, time));
   for (const bm of hole.bumpers) collideBumper(bm);
   for (const m of hole.mills) collideMill(m);
+  plantStep(dt, air); weedPhysics(); flytrapPhysics(Math.hypot(ball.vx, ball.vy));
+  if (state !== 'play') return; // the flytrap just ate it
   trollPhysics(air, Math.hypot(ball.vx, ball.vy));
   if (!ball.moving) return; // a penalty reset happened
   // black holes and sinkholes pull the item in; reach the middle and it's gone
@@ -1300,7 +1317,7 @@ const CONDITIONS = [
 // [troll, how likely it is to be picked]
 const EXTRAS = [['gust', 3], ['crow', 2], ['relocate', 2], ['thief', 2], ['mole', 2], ['lid', 2], ['var', 2], ['ufo', 1],
   ['dog', 3], ['mower', 3], ['peel', 3], ['raccoon', 2], ['blackout', 2], ['mirror', 2],
-  ['tornado', 2], ['boulder', 2], ['crash', 1], ['inflation', 2]];
+  ['tornado', 2], ['boulder', 2], ['crash', 1], ['inflation', 2], ['weed', 3], ['flytrap', 2]];
 // is there a straight, open path from one point to another (no walls, water, bumpers or black holes)?
 function clearLine(ax, ay, bx, by) {
   const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 10);
@@ -1357,6 +1374,7 @@ function setupTrolls() {
     // on every hole: the ball teeters on the lip once, and the green slopes back toward you once
     teeter: 1, slope: 1,
     dog: tr.dog || 0, mower: tr.mower || 0, peel: tr.peel || 0, raccoon: tr.raccoon || 0, blackout: tr.blackout || 0, mirror: tr.mirror || 0,
+    weed: tr.weed || 0, flytrap: tr.flytrap ? 2 : 0, weeds: [], trap: null,
     tornado: tr.tornado || 0, boulder: tr.boulder || 0, crash: tr.crash || 0, inflation: tr.inflation || 0, boulderOn: null,
     mowerOn: null, peelOn: null, peelThisShot: false, hidden: 0, dark: false, mirrorOn: false,
     tr, extras: Object.keys(extra).filter(k => k !== 'crowDrops'),
@@ -1393,7 +1411,7 @@ function trollTick(dt) {
     // if the item was sitting on the lid, it drops in when the lid slides away
     if (T.lid < .5 && was >= .5 && !ball.moving && d < 13) sink();
   }
-  mowerTick(dt); peelTick(); tornadoTick(); boulderTick(dt);
+  mowerTick(dt); peelTick(); tornadoTick(); boulderTick(dt); weedTick(dt);
   if (T.mole) {
     const ph = (time % 2.6) / 2.6;
     T.moleUp = ph < .42 ? Math.min(1, ph / .06) : Math.max(0, 1 - (ph - .42) / .06);
@@ -1581,6 +1599,7 @@ function trollAnim(dt) {
       endAnim();
     }
   } else if (A.type === 'dog') dogAnim(A);
+  else if (A.type === 'flytrap') flytrapAnim(A);
   else if (A.type === 'tornado') tornadoAnim(A);
   else if (A.type === 'crash') crashAnim(A);
   else if (A.type === 'raccoon') raccoonAnim(A);
@@ -1889,6 +1908,9 @@ function garyLine() {
   add(t.mirror, ['If your controls feel backwards, that is a you problem.']);
   add(t.tornado, ['Tornado watch is in effect. It is always in effect.']);
   add(t.boulder, ['If you hear rumbling, putt faster.']);
+  add(t.flytrap, ['Do not feed the plant. It feeds itself.', 'That flytrap ate my lunch. And my caddie bib.']);
+  add(t.weed, ['Weeds grow fast here. Like, really fast. Like, during your putt.']);
+  add(plants.rough.length || plants.roots.length, ['The groundskeeper quit. The plants have taken over.', 'Mind the rough. And the roots. Basically, mind the plants.']);
   add(t.var, ['VAR is in the booth today. They are very thorough.']);
   add(true, ['This one is easy. That is what I said about the last one.', 'I believe in you. Statistically, I should not.',
     'Par is just a suggestion. A rude one.', 'Fun fact: I have never finished this hole.', 'Just hit it in. How hard can it be? (Very.)']);
@@ -1915,6 +1937,9 @@ function awards(total, par) {
   give(s.boulderhit, '🪨', 'Indiana Golf', `Flattened by a boulder ${s.boulderhit} time${s.boulderhit > 1 ? 's' : ''}.`);
   give(s.portals, '🌀', 'Thinking With Portals', `Went through ${s.portals} portal${s.portals > 1 ? 's' : ''}.`);
   give(s.jumps, '🛹', 'Stunt Golfer', `Launched off ${s.jumps} ramp${s.jumps > 1 ? 's' : ''}.`);
+  give(s.flytrap, '🪴', 'Plant Food', `Eaten by a flytrap ${s.flytrap} time${s.flytrap > 1 ? 's' : ''}.`);
+  give(s.roots >= 2, '🌳', 'Rooted', `Tripped over ${s.roots} roots.`);
+  give(s.weedhit, '🌱', 'Weed Whacked', `Bounced off ${s.weedhit} weed${s.weedhit > 1 ? 's' : ''} that grew out of nowhere.`);
   give(s.crash, '💻', 'Have You Tried Turning It Off', 'Survived a fake crash.');
   give(s.deflation, '📉', 'Victim of the Economy', `Par went down ${s.deflation} time${s.deflation > 1 ? 's' : ''} while you played.`);
   give(quitTries >= 3, '🏳️', 'Tried to Quit', `Pressed Give up ${quitTries} times. It never works.`);
@@ -2001,6 +2026,256 @@ function drawCreative(U) {
       o.rotation.y = -Math.atan2(O.vy, O.vx);
       o.userData.rock.rotation.z = -O.roll;
     }
+  }
+}
+
+// ---------- Plants: the vegetation is also out to get you ----------
+// Rough (tall grass that slows the ball and makes it wander) and roots (that bump it off line) are
+// scattered around the approach to the cup each time a hole loads. The sprouting weed and the
+// Venus flytrap are trolls. Each course has its own kind: grass and trees, dry desert scrub, alien moon moss.
+let plants = { rough: [], roots: [] };
+const PLANT_LOOK = {
+  grass:  { rough: ['#4f9a3c', '#3c7f2e'], tuft: [0x4f9a3c, 0x3c8a30, 0x6ab84a], root: 0x6b4a2b, weed: 'flower', trap: [0x5aa83c, 0xd8324a] },
+  desert: { rough: ['#b9a05a', '#9c8444'], tuft: [0xb9a05a, 0x9c8444, 0xc8b46c], root: 0x7a5228, weed: 'cactus', trap: [0x8aa04a, 0xd8504a] },
+  moon:   { rough: ['#6a4c9a', '#4e3878'], tuft: [0x8a5cd0, 0x6a44b0, 0xb07cff], root: 0x5a3a8a, weed: 'glow', trap: [0x7a4cc0, 0x3dffb0] },
+};
+const plantLook = () => PLANT_LOOK[course.theme];
+
+// is a spot clear of everything solid or nasty (and away from the tee and the cups)?
+function plantClear(x, y, gap) {
+  if (x < B + gap || x > W - B - gap || y < B + gap || y > H - B - gap) return false;
+  if ([...hole.walls, ...hole.water, ...hole.sand, ...hole.boosts].some(r => rectDist(x, y, r) < gap)) return false;
+  if (hole.bumpers.some(bm => Math.hypot(x - bm[0], y - bm[1]) < bm[2] + gap)) return false;
+  if ([...hole.mills, ...hole.pulls].some(m => Math.hypot(x - m[0], y - m[1]) < m[2] + gap)) return false;
+  if (hole.ramps.some(rp => Math.hypot(x - rp[0], y - rp[1]) < rp[2] / 2 + gap)) return false;
+  if (hole.portals.some(([ax, ay, bx, by]) => Math.hypot(x - ax, y - ay) < 30 + gap || Math.hypot(x - bx, y - by) < 30 + gap)) return false;
+  if (Math.hypot(x - hole.start[0], y - hole.start[1]) < 90 + gap) return false;
+  if (cups.some(c => Math.hypot(x - c.x, y - c.y) < 26 + gap)) return false;
+  return true;
+}
+function setupPlants() {
+  plants = { rough: [], roots: [] };
+  const c = realCup(), toTee = Math.atan2(hole.start[1] - c.y, hole.start[0] - c.x);
+  // a patch of rough on the approach to the cup
+  for (let i = 0; i < 80 && plants.rough.length < (Math.random() < .5 ? 1 : 2); i++) {
+    const a = toTee + (Math.random() - .5) * 2.2, d = 80 + Math.random() * 140, w = 90 + Math.random() * 60, h = 70 + Math.random() * 40;
+    const cx = c.x + Math.cos(a) * d, cy = c.y + Math.sin(a) * d, r = [cx - w / 2, cy - h / 2, w, h];
+    const corners = [[r[0], r[1]], [r[0] + w, r[1]], [r[0], r[1] + h], [r[0] + w, r[1] + h], [cx, cy]];
+    if (!corners.every(([x, y]) => plantClear(x, y, 8))) continue;
+    if (plants.rough.some(q => rectDist(cx, cy, q) < 60)) continue;
+    plants.rough.push(r.map(Math.round));
+  }
+  // a root or two across the line to the cup
+  for (let i = 0; i < 80 && plants.roots.length < (Math.random() < .6 ? 1 : 2); i++) {
+    const a = toTee + (Math.random() - .5) * 1.6, d = 60 + Math.random() * 120, len = 80 + Math.random() * 60;
+    const mx = c.x + Math.cos(a) * d, my = c.y + Math.sin(a) * d, ra = a + Math.PI / 2 + (Math.random() - .5) * 1;
+    const seg = [mx - Math.cos(ra) * len / 2, my - Math.sin(ra) * len / 2, mx + Math.cos(ra) * len / 2, my + Math.sin(ra) * len / 2];
+    const pts = [0, .25, .5, .75, 1].map(k => [seg[0] + (seg[2] - seg[0]) * k, seg[1] + (seg[3] - seg[1]) * k]);
+    if (!pts.every(([x, y]) => plantClear(x, y, 10))) continue;
+    if (plants.rough.some(q => pts.some(([x, y]) => rectDist(x, y, q) < 10))) continue;
+    plants.roots.push(seg.map(Math.round));
+  }
+  // the flytrap grows right next to the cup
+  T.trap = null;
+  if (T.flytrap > 0) for (let i = 0; i < 40; i++) {
+    const a = Math.random() * TAU, x = c.x + Math.cos(a) * 52, y = c.y + Math.sin(a) * 52;
+    if (!plantClear(x, y, 12)) continue;
+    T.trap = { x, y, open: 1, face: Math.atan2(c.y - y, c.x - x) + Math.PI }; break;
+  }
+  T.weeds = [];
+}
+// rough is painted onto the ground: a darker, shaggy patch
+function paintPlants() {
+  const c = bctx, [a, b] = plantLook().rough;
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (const r of plants.rough) {
+    c.fillStyle = a; roundRect(r[0], r[1], r[2], r[3], 26, c); c.fill();
+    c.save(); roundRect(r[0], r[1], r[2], r[3], 26, c); c.clip();
+    c.strokeStyle = b; c.lineWidth = 1.6;
+    for (let i = 0; i < r[2] * r[3] / 40; i++) {
+      const x = r[0] + Math.random() * r[2], y = r[1] + Math.random() * r[3];
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + (Math.random() - .5) * 4, y - 4 - Math.random() * 5); c.stroke();
+    }
+    c.restore();
+  }
+}
+
+// the ball rolling through rough and over roots
+const segDist = (x, y, [x1, y1, x2, y2]) => {
+  const dx = x2 - x1, dy = y2 - y1, t = clamp(((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+  return Math.hypot(x - (x1 + dx * t), y - (y1 + dy * t));
+};
+function plantStep(dt, air) {
+  if (air) return;
+  const sp = Math.hypot(ball.vx, ball.vy);
+  if (plants.rough.some(r => inRect(ball.x, ball.y, r))) {
+    // tall grass grabs it and nudges it this way and that
+    const f = Math.pow(.955, dt * 60); ball.vx *= f; ball.vy *= f;
+    ball.drift = clamp((ball.drift || 0) + (Math.random() - .5) * 70 * dt, -1.8, 1.8);
+    const w = ball.drift * dt, cw = Math.cos(w), sw = Math.sin(w);
+    [ball.vx, ball.vy] = [ball.vx * cw - ball.vy * sw, ball.vx * sw + ball.vy * cw];
+    if (Math.random() < dt * 30) puff(ball.x, ball.y, plantLook().rough[0], 60, .4, 3);
+    if (!T.saidRough && sp > 40) { T.saidRough = true; toast(pick(LINES['rough_' + course.theme]), 1600); addRage(3); }
+  } else ball.drift = (ball.drift || 0) * .97;
+  if (ball.rootCD > 0) { ball.rootCD -= dt; return; }
+  for (const seg of plants.roots) {
+    if (sp < 40 || segDist(ball.x, ball.y, seg) > item.r * .6 + 3) continue;
+    const a = (Math.random() < .5 ? -1 : 1) * (.3 + Math.random() * .45), cw = Math.cos(a), sw = Math.sin(a);
+    [ball.vx, ball.vy] = [(ball.vx * cw - ball.vy * sw) * .86, (ball.vx * sw + ball.vy * cw) * .86];
+    ball.air = ball.airT = .13; ball.rootCD = .3; ball.squash = .6;
+    tone(140, .08, 'triangle', .12, 90); noise(.05, .15, 1200);
+    bump('roots');
+    if (!T.saidRoot) { T.saidRoot = true; toast(pick(LINES['root_' + course.theme]), 1600); addRage(4); }
+    return;
+  }
+}
+
+// a weed sprouts right in front of the ball as it rolls up to the cup
+function weedTick(dt) {
+  for (const w of T.weeds || []) if (w.h < 1) w.h = Math.min(1, w.h + dt * 5);
+  if (!(T.weed > 0) || !ball.moving || ball.air > 0) return;
+  const c = realCup(), dx = c.x - ball.x, dy = c.y - ball.y, d = Math.hypot(dx, dy), sp = Math.hypot(ball.vx, ball.vy);
+  if (d < 45 || d > 170 || sp < 70 || dx * ball.vx + dy * ball.vy <= 0 || Math.random() > .08) return;
+  const k = clamp(d * .5, 22, 55), x = ball.x + ball.vx / sp * k, y = ball.y + ball.vy / sp * k;
+  if (Math.hypot(x - c.x, y - c.y) < 18) return; // never on top of the cup itself
+  T.weed--; T.weeds.push({ x, y, h: 0 });
+  toast(pick(LINES['weed_' + course.theme]), 1500); addRage(5);
+  tone(500, .2, 'sine', .1, 1100);
+}
+function weedPhysics() {
+  for (const w of T.weeds || []) {
+    if (w.h < .5) continue;
+    const dx = ball.x - w.x, dy = ball.y - w.y, d = Math.hypot(dx, dy), min = item.r + 8;
+    if (d >= min || d < 1e-6) continue;
+    const nx = dx / d, ny = dy / d, vn = ball.vx * nx + ball.vy * ny;
+    ball.x = w.x + nx * min; ball.y = w.y + ny * min;
+    if (vn < 0) {
+      ball.vx -= 1.7 * vn * nx; ball.vy -= 1.7 * vn * ny;
+      const a = (Math.random() - .5) * .5, cw = Math.cos(a), sw = Math.sin(a);
+      [ball.vx, ball.vy] = [ball.vx * cw - ball.vy * sw, ball.vx * sw + ball.vy * cw];
+      if (-vn > 40) { w.wobble = 1; tone(700, .07, 'sine', .1, 400); bump('weedhit'); if (!T.saidWeedHit) { T.saidWeedHit = true; toast(pick(LINES.weedhit), 1500); addRage(6); } }
+    }
+  }
+}
+
+// the Venus flytrap: wander close and slow and it snaps the ball up, chews, and spits it out the wrong way
+function flytrapPhysics(sp) {
+  const P = T.trap;
+  if (!P || ball.air > 0) return;
+  const d = Math.hypot(ball.x - P.x, ball.y - P.y);
+  if (T.flytrap > 0 && d < 36 && sp < 280) { T.flytrap--; startAnim('flytrap'); return; }
+  // its stem is solid
+  if (d < item.r + 10 && d > 1e-6) {
+    const nx = (ball.x - P.x) / d, ny = (ball.y - P.y) / d, vn = ball.vx * nx + ball.vy * ny;
+    ball.x = P.x + nx * (item.r + 10); ball.y = P.y + ny * (item.r + 10);
+    if (vn < 0) { ball.vx -= 1.6 * vn * nx; ball.vy -= 1.6 * vn * ny; }
+  }
+}
+function flytrapAnim(A) {
+  const P = T.trap, c = realCup();
+  if (A.t < .18) { P.open = 1 - A.t / .18; ball.x += (P.x - ball.x) * .4; ball.y += (P.y - ball.y) * .4; }
+  else if (A.t < 1.3) {
+    if (!A.ate) { A.ate = 1; ball.hidden = true; P.open = 0; toast(pick(LINES['flytrap_' + course.theme]), 1900); addRage(12); noise(.12, .4, 2500); }
+    if (Math.floor(A.t * 8) !== A.tick) { A.tick = Math.floor(A.t * 8); noise(.06, .25, 900 + Math.random() * 600); }
+    P.chew = Math.sin(A.t * 30) * .15;
+  } else {
+    // spit it out, away from the cup
+    const a = Math.atan2(P.y - c.y, P.x - c.x) + (Math.random() - .5) * 1.2;
+    P.open = 1; P.chew = 0;
+    ball.hidden = false; ball.x = P.x + Math.cos(a) * 20; ball.y = P.y + Math.sin(a) * 20;
+    ball.vx = Math.cos(a) * 430; ball.vy = Math.sin(a) * 430; ball.air = ball.airT = .45; ball.moving = true; ball.trolled = true;
+    tone(260, .15, 'square', .1, 600); laugh();
+    if (!(T.flytrap > 0)) setTimeout(() => toast(pick(LINES.flytrapfull), 1600), 1200);
+    endAnim();
+  }
+}
+
+// ----- 3D -----
+function tuftsModel(r) {
+  const g = new THREE.Group(), cols = plantLook().tuft, n = Math.round(r[2] * r[3] / 260);
+  const geo = new THREE.ConeGeometry(1.6, 1, 4);
+  for (let i = 0; i < n; i++) {
+    const t = new THREE.Group(), x = r[0] + 6 + Math.random() * (r[2] - 12), y = r[1] + 6 + Math.random() * (r[3] - 12);
+    place(t, x, y);
+    for (let k = 0; k < 3; k++) {
+      const h = 9 + Math.random() * 11, blade = new THREE.Mesh(geo, L(cols[(i + k) % cols.length]));
+      blade.scale.set(1, h, 1); blade.position.set((Math.random() - .5) * 4, h / 2, (Math.random() - .5) * 4);
+      blade.rotation.set((Math.random() - .5) * .5, 0, (Math.random() - .5) * .5); blade.castShadow = k === 0;
+      t.add(blade);
+    }
+    t.userData.phase = Math.random() * TAU; g.add(t);
+  }
+  return g;
+}
+function rootModel(seg) {
+  const [x1, y1, x2, y2] = seg, pts = [];
+  for (let k = 0; k <= 6; k++) {
+    const u = k / 6, nx = -(y2 - y1), ny = x2 - x1, nd = Math.hypot(nx, ny) || 1, wig = Math.sin(u * 9 + x1) * 5;
+    pts.push(new THREE.Vector3(wx(x1 + (x2 - x1) * u + nx / nd * wig), 1.5 + Math.sin(u * Math.PI) * 2.5 + (k % 2) * 1.5, wz(y1 + (y2 - y1) * u + ny / nd * wig)));
+  }
+  const g = new THREE.Group(), col = L(plantLook().root);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, 3.4, 8), col);
+  tube.castShadow = true; tube.receiveShadow = true; g.add(tube);
+  for (let k = 1; k < 6; k += 2) { const kn = new THREE.Mesh(SPH(10), col); kn.position.copy(pts[k]); kn.scale.set(4.5, 3, 4.5); kn.castShadow = true; g.add(kn); }
+  return g;
+}
+function weedModel() {
+  const g = new THREE.Group(), kind = plantLook().weed, stemC = kind === 'glow' ? 0x6a44b0 : 0x3c8a30;
+  part(g, new THREE.CylinderGeometry(1.2, 1.6, 22, 6), L(stemC), 0, 11, 0);
+  for (const s of [-1, 1]) { const leaf = part(g, SPH(10), L(kind === 'glow' ? 0x8a5cd0 : 0x4f9a3c), s * 5, 6 + (s > 0 ? 3 : 0), 0); leaf.scale.set(6, 1.4, 3); leaf.rotation.z = s * .4; }
+  if (kind === 'flower') {
+    for (let i = 0; i < 6; i++) { const a = i * TAU / 6, p = part(g, SPH(8), L(0xffe14d), Math.cos(a) * 4.5, 23, Math.sin(a) * 4.5); p.scale.set(3.2, 1.2, 3.2); }
+    part(g, SPH(10), L(0xe08a1a), 0, 23.5, 0).scale.set(3, 2, 3);
+  } else if (kind === 'cactus') {
+    part(g, new THREE.CylinderGeometry(4, 4.5, 14, 10), L(0x3f9a4a), 0, 22, 0);
+    part(g, SPH(10), L(0xff5fa2), 0, 30, 0).scale.setScalar(3);
+  } else {
+    const bulb = new THREE.Mesh(SPH(12), new THREE.MeshBasicMaterial({ color: 0x3dffb0 })); bulb.position.y = 25; bulb.scale.setScalar(5); g.add(bulb);
+  }
+  return g;
+}
+function flytrapModel() {
+  const [outC, inC] = plantLook().trap, g = new THREE.Group(), out = L(outC), inside = L(inC);
+  // a thick curving stem and a few leaves at the base
+  const stem = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(-3, 14, 0), new THREE.Vector3(2, 28, 0), new THREE.Vector3(6, 36, 0)]);
+  part(g, new THREE.TubeGeometry(stem, 12, 2.6, 8), out);
+  for (let i = 0; i < 4; i++) { const a = i * TAU / 4 + .4, leaf = part(g, SPH(10), out, Math.cos(a) * 9, 2, Math.sin(a) * 9); leaf.scale.set(10, 1.6, 4); leaf.rotation.y = -a; }
+  // the head: a hinge with a lower jaw and an upper jaw that opens, red inside, with teeth
+  const head = new THREE.Group(); head.position.set(6, 37, 0); g.add(head);
+  const jaw = (up) => {
+    const j = new THREE.Group(); head.add(j);
+    const shell = part(j, new THREE.SphereGeometry(11, 16, 8, 0, TAU, up ? 0 : Math.PI / 2, Math.PI / 2), out, 11, 0, 0); shell.scale.set(1.1, .55, .9);
+    const lip = part(j, new THREE.CircleGeometry(10.5, 16), inside, 11, 0, 0); lip.rotation.x = up ? Math.PI / 2 : -Math.PI / 2; lip.scale.set(1.1, .9, 1); lip.material.side = THREE.DoubleSide;
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 8 - .5) * Math.PI * 1.6 + Math.PI / 2, tooth = part(j, new THREE.ConeGeometry(1, 5, 4), L(0xf6f2d8), 11 + Math.sin(a) * 11.5, up ? -2 : 2, Math.cos(a) * 9.5);
+      tooth.rotation.x = up ? Math.PI : 0;
+    }
+    return j;
+  };
+  const lower = jaw(false), upper = jaw(true);
+  for (const s of [-1, 1]) part(upper, SPH(8), L(0xffffff), 15, 6.5, s * 4).scale.setScalar(2.2), part(upper, SPH(8), shiny(0x111111, 150), 16.6, 6.8, s * 4).scale.setScalar(1.1);
+  g.userData = { head, upper, lower };
+  g.scale.setScalar(1.3);
+  return g;
+}
+function drawPlants(U) {
+  for (const t of U.tufts || []) t.children.forEach(tf => { tf.rotation.z = Math.sin(time * 2 + tf.userData.phase) * .12; });
+  // weeds pop up out of the ground
+  U.weedObjs = U.weedObjs || [];
+  (T.weeds || []).forEach((w, i) => {
+    if (!U.weedObjs[i]) { U.weedObjs[i] = toonify(weedModel()); level3D.add(U.weedObjs[i]); place(U.weedObjs[i], w.x, w.y); }
+    const o = U.weedObjs[i], k = w.h < 1 ? 1 - Math.pow(1 - w.h, 3) : 1;
+    o.scale.set(1.3, 1.3 * Math.max(.01, k) * (1 + Math.sin(time * 12) * .06 * (w.wobble || 0)), 1.3);
+    if (w.wobble) { w.wobble = Math.max(0, w.wobble - drawDt * 2); o.rotation.z = Math.sin(time * 25) * .3 * w.wobble; }
+  });
+  if (U.trap && T.trap) {
+    const P = T.trap, o = U.trap;
+    place(o, P.x, P.y); o.rotation.y = -P.face;
+    const asleep = !(T.flytrap > 0) && !(T.anim && T.anim.type === 'flytrap');
+    const open = asleep ? .15 : (P.open ?? 1) * (.75 + Math.sin(time * 3) * .12);
+    o.userData.upper.rotation.z = open;
+    o.userData.head.rotation.z = (P.chew || 0) + (asleep ? -.3 : Math.sin(time * 1.5) * .08);
+    o.userData.head.rotation.y = asleep ? 0 : Math.sin(time * .9) * .4;
   }
 }
 
@@ -3573,6 +3848,9 @@ function build3D() {
   }
   if (T.tornado) U0.tornado = prop(tornadoModel());
   if (T.boulder) U0.boulder = prop(boulderModel());
+  U0.tufts = plants.rough.map(r => { const o = tuftsModel(r); level3D.add(o); return o; });
+  for (const seg of plants.roots) level3D.add(rootModel(seg));
+  if (T.trap) { U0.trap = flytrapModel(); level3D.add(U0.trap); }
   U0.portals = hole.portals.flatMap(([ax, ay, bx, by]) => [[ax, ay, 0xff8a1f, 1], [bx, by, 0x2fa8ff, -1]].map(([x, y, col, dir]) => {
     const o = portalModel('#' + col.toString(16).padStart(6, '0')); o.userData.dir = dir; place(o, x, y); level3D.add(o); return o;
   }));
@@ -3876,7 +4154,7 @@ function drawTrolls(U) {
   for (const { g } of U.bumpers) if (g.userData.spin) { g.userData.spin.rotation.y += drawDt * .6; g.userData.spin.rotation.x += drawDt * .3; }
   if (U.earth) U.earth.rotation.y += drawDt * .05;
   for (const f of U.sceneryAnim || []) f(time, drawDt);
-  drawCreative(U);
+  drawCreative(U); drawPlants(U);
   if (U.dog) {
     const mine = A && A.type === 'dog', L = T.fx.dog, o = U.dog;
     o.visible = !!(mine || L);
@@ -4122,6 +4400,11 @@ function drawMini() {
   mctx.fillStyle = '#ffd23d';
   for (const rp of hole.ramps) { mctx.save(); mctx.translate(rp[0], rp[1]); mctx.rotate(rp[4]); mctx.fillRect(-rp[2] / 2, -rp[3] / 2, rp[2], rp[3]); mctx.restore(); }
   if (T.boulderOn) { mctx.fillStyle = '#6b5a48'; circle(T.boulderOn.x, T.boulderOn.y, 38, mctx); mctx.fill(); }
+  mctx.strokeStyle = '#5a3a1e'; mctx.lineWidth = 9;
+  for (const [x1, y1, x2, y2] of plants.roots) { mctx.beginPath(); mctx.moveTo(x1, y1); mctx.lineTo(x2, y2); mctx.stroke(); }
+  mctx.fillStyle = '#2f8a3a';
+  for (const w of T.weeds || []) { circle(w.x, w.y, 14, mctx); mctx.fill(); }
+  if (T.trap) { mctx.fillStyle = '#d8324a'; circle(T.trap.x, T.trap.y, 20, mctx); mctx.fill(); }
   for (const c of cups) {
     if (cupHidden(c)) continue;
     mctx.fillStyle = '#fff'; circle(c.x, c.y, 22, mctx); mctx.fill();
