@@ -79,6 +79,11 @@ intro card and next to the hole name: 🧊 icy green, 🍯 sticky green, 🏀 bo
 Slide past the cup and the crowd groans. The 🏳️ Give up button refuses to let you quit (and hops somewhere else),
 and the score card counts how many times you tried.
 
+**The course talks back.** A smug little face 😏 in the corner comments on everything: it brags about whatever it hid on each hole,
+gets bored if you wait ("Any day now."), warns you off full-power swings ("Easy, tiger."), hands out backhanded compliments ("Lucky."),
+mocks pinball shots, cackles at your penalties and trolls, rates your score when you finally sink it, and takes it personally
+if you turn the music off ("Rude. I composed that."). It also does the taunting now.
+
 Every troll has a limit, so every hole can be finished. There is no mercy rule: a hole doesn't end until the ball is in.
 Each course has its own chiptune, made in the browser with Web Audio, that speeds up as your rage climbs and goes quiet while the ball teeters.
 A rage meter tracks how it's going, and a commentator helps by telling you it's a skill issue (and gets meaner as the meter climbs).
