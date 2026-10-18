@@ -33,8 +33,16 @@ On top of that, every hole has two more surprises, once each:
 - **Teeter:** stop right next to the cup and the ball creeps up to the lip, wobbles with a drumroll... and rolls back out.
 - **Sloped green:** stop close to the cup and the green turns out to slope back toward where you hit from.
 
+More trolls can turn up on any hole:
+- 🐕 **The dog:** stop near the cup and a golden retriever runs in, grabs the ball and drops it somewhere far away.
+- 🚜 **Groundskeeper:** a ride-on mower drives straight across your shot and knocks the ball away (a moon rover on the moon).
+- 🍌 **Banana peel:** one lands right in front of the rolling ball, and it spins out.
+- 🦝 **Flag thief:** a raccoon steals the flag and turfs over the cup. It's invisible (even on the minimap) for two shots. Fake cups stay visible.
+- ⚡ **Power cut:** the lights go out for a shot. You get a spotlight on the ball and a blinking light on the flag.
+- 🪞 **Mirror mode:** left and right are flipped for one shot. The aim arrow shows where it will really go.
+
 No two rounds play the same: every time a hole loads it secretly adds a random extra troll or two (wind, the eagle,
-a cup that moves, the hand, the mole, the lid, VAR or the UFO), and usually rolls a random condition, shown on the
+a cup that moves, the hand, the mole, the lid, VAR, the UFO, or any of the new trolls above), and usually rolls a random condition, shown on the
 intro card and next to the hole name: 🧊 icy green, 🍯 sticky green, 🏀 bouncy walls, 🫨 shaky hands, 🎲 random power,
 🌬️ a steady breeze or 😵 hiccups. The intro hints whether something extra is hiding. It doesn't always tell the truth.
 

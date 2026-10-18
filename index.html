@@ -149,6 +149,11 @@
   #quitBtn { margin: 0 4px; }
   #musicBtn.off { opacity: .4; text-decoration: line-through; }
   canvas, #mini { image-rendering: pixelated; image-rendering: crisp-edges; }
+  #dark {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; box-shadow: none; background: transparent;
+    aspect-ratio: auto; pointer-events: none; opacity: 0; transition: opacity .35s; image-rendering: auto;
+  }
+  #dark.show { opacity: 1; }
   canvas { border: 4px solid #2b2118; }
   .screen { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(15,26,16,.55); }
   .screen.show .card { animation: pop .3s steps(3); }
@@ -183,6 +188,7 @@
     </div>
 
     <canvas id="mini" width="150" height="96" title="Minimap"></canvas>
+    <canvas id="dark" width="1000" height="640"></canvas>
 
     <div class="screen" id="mapScreen">
       <div class="card wide">
@@ -453,6 +459,15 @@ const LINES = {
   // once the rage meter is high the commentator gets meaner
   meantaunt: ['Have you considered bowling?', 'The windmill is laughing at you.', 'A pigeon could do this. A pigeon did, earlier.',
               'Breathe in. Breathe out. Miss again.', 'Rage looks good on you.', 'Wow. Just wow.', 'Are you hitting it with your eyes closed?'],
+  dog:      ['🐕 FETCH! Good boy. He brought it… somewhere else.', '🐕 A dog took your ball. He is very proud.', '🐕 Who let the dog out?'],
+  mower:    ['🚜 Groundskeeper coming through!', '🚜 Mowing in progress. Do not mind him.'],
+  mowerhit: ['🚜 Whoops! Sorry, didn\'t see you there.', '🚜 The groundskeeper does not care about your score.'],
+  rover:    ['🛻 Moon rover crossing!', '🛻 Routine rover patrol.'],
+  roverhit: ['🛻 Bonk. The rover has right of way.', '🛻 Houston, we have a problem.'],
+  peel:     ['🍌 Banana peel! Classic.', '🍌 Who leaves a banana peel on a golf course?!', '🍌 Wheee… and it slipped.'],
+  raccoon:  ['🦝 A raccoon stole the flag and hid the cup! Remember where it was?', '🦝 The flag is gone. The cup is under the turf somewhere.'],
+  blackout: ['⚡ Power cut! Good luck seeing anything.', '⚡ Who turned off the lights?!'],
+  mirror:   ['🪞 Mirror mode! Left and right are flipped for this shot.', '🪞 Your controls have been reflected. Just this once.'],
   nearmiss: ['😱 OOOOH! So close!', '😱 It kissed the cup and left.', '😱 The cup said "no thank you."', '😱 Grazed it! The crowd groans.'],
   teeter:   ['😬 It is teetering…', '😬 Wobble… wobble…', '😬 It is right on the edge…'],
   teetered: ['🙃 Nope.', '🙃 Changed its mind.', '🙃 So, so close. Not in.', '🙃 Gravity took the day off.'],
@@ -587,6 +602,9 @@ const sfx = {
   quack() { tone(500, .12, 'sawtooth', .1, 350); },
   sink() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .25, 'triangle', .15, 0, i * .09)); },
   boost() { tone(400, .1, 'sine', .05, 800); },
+  bark() { tone(520, .09, 'square', .12, 300); tone(480, .12, 'square', .12, 260, .14); },
+  motor() { for (let i = 0; i < 6; i++) tone(70 + (i % 2) * 12, .18, 'sawtooth', .06, 60, i * .16); },
+  slip() { tone(300, .35, 'sine', .14, 1400); tone(1400, .35, 'sine', .1, 300, .3); },
 };
 
 // ---------- Geometry helpers ----------
@@ -742,7 +760,9 @@ canvas.addEventListener('pointercancel', () => aim = null);
 canvas.addEventListener('contextmenu', e => { e.preventDefault(); aim = null; });
 
 function aimVec() {
-  const dx = aim.sx - aim.x, dy = aim.sy - aim.y, len = Math.hypot(dx, dy);
+  let dx = aim.sx - aim.x;
+  const dy = aim.sy - aim.y, len = Math.hypot(dx, dy);
+  if (T.mirrorOn) dx = -dx; // mirror mode: left and right are swapped
   return { ang: Math.atan2(dy, dx), power: clamp(len / MAX_PULL, 0, 1) };
 }
 
@@ -782,7 +802,8 @@ function shoot({ ang, power }) {
   ball.air = 0;
   if (club.lob) { ball.airT = (.35 + .55 * power) * (course.lowGrav ? 1.5 : 1); ball.air = ball.airT; }
   ball.moving = true; ball.hopped = false; ball.stopT = 0; ball.minD = Infinity; ball.trolled = false;
-  T.gustThisShot = false;
+  T.gustThisShot = false; T.peelThisShot = false; T.mirrorOn = false;
+  if (T.peelOn && T.peelOn.used) T.peelOn = null;
   strokes++; updateHud();
   swing = { t: 0, ang, club, power };
   sfx.hit(club);
@@ -1124,7 +1145,8 @@ const CONDITIONS = [
   { emoji: '😵', text: 'Hiccups: the ball hops on its own sometimes.', hiccups: true },
 ];
 // [troll, how likely it is to be picked]
-const EXTRAS = [['gust', 3], ['crow', 2], ['relocate', 2], ['thief', 2], ['mole', 2], ['lid', 2], ['var', 2], ['ufo', 1]];
+const EXTRAS = [['gust', 3], ['crow', 2], ['relocate', 2], ['thief', 2], ['mole', 2], ['lid', 2], ['var', 2], ['ufo', 1],
+  ['dog', 3], ['mower', 3], ['peel', 3], ['raccoon', 2], ['blackout', 2], ['mirror', 2]];
 // is there a straight, open path from one point to another (no walls, water, bumpers or black holes)?
 function clearLine(ax, ay, bx, by) {
   const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 10);
@@ -1153,7 +1175,7 @@ function freeSpot(cupGap, to) {
   return null;
 }
 function rollSurprises(tr) {
-  const extra = {}, n = Math.random() < .15 ? 0 : Math.random() < .7 ? 1 : 2;
+  const r0 = Math.random(), extra = {}, n = r0 < .1 ? 0 : r0 < .5 ? 1 : r0 < .88 ? 2 : 3;
   let pool = EXTRAS.filter(([k]) => !(k === 'lid' ? tr.lid : k === 'mole' ? tr.mole : k === 'relocate' ? (tr.relocate || []).length : tr[k]));
   for (let i = 0; i < n && pool.length; i++) {
     let r = Math.random() * pool.reduce((a, [, w]) => a + w, 0), k = pool[0][0];
@@ -1180,6 +1202,8 @@ function setupTrolls() {
     gustThisShot: false, anim: null, fx: {},
     // on every hole: the ball teeters on the lip once, and the green slopes back toward you once
     teeter: 1, slope: 1,
+    dog: tr.dog || 0, mower: tr.mower || 0, peel: tr.peel || 0, raccoon: tr.raccoon || 0, blackout: tr.blackout || 0, mirror: tr.mirror || 0,
+    mowerOn: null, peelOn: null, peelThisShot: false, hidden: 0, dark: false, mirrorOn: false,
     tr, extras: Object.keys(extra).filter(k => k !== 'crowDrops'),
     cond: Math.random() < .75 ? pick(CONDITIONS) : null, breezeA: Math.random() * TAU,
   };
@@ -1214,6 +1238,7 @@ function trollTick(dt) {
     // if the item was sitting on the lid, it drops in when the lid slides away
     if (T.lid < .5 && was >= .5 && !ball.moving && d < 13) sink();
   }
+  mowerTick(dt); peelTick();
   if (T.mole) {
     const ph = (time % 2.6) / 2.6;
     T.moleUp = ph < .42 ? Math.min(1, ph / .06) : Math.max(0, 1 - (ph - .42) / .06);
@@ -1256,7 +1281,10 @@ function gust(c) {
 function onStop() {
   if (state !== 'play' || ball.gone) return;
   const c = realCup(), d = Math.hypot(c.x - ball.x, c.y - ball.y);
+  endShotTrolls();
   if (T.crow > 0 && d < 170) { T.crow--; startAnim('crow'); return; }
+  if (T.dog > 0 && d < 170) { T.dog--; startAnim('dog'); return; }
+  if (T.raccoon > 0 && !T.hidden && d > 90 && d < 420 && Math.random() < .55) { T.raccoon--; startAnim('raccoon'); return; }
   if (T.relocate.length && d < 200) { relocateCup(c); return; }
   // the ground gives way under it: once on a weak spot, and (more evil) once or twice near the cup
   const under = chunks.find(ch => ch.st === 'idle' && inPoly(ball.x, ball.y, ch.pts));
@@ -1269,6 +1297,7 @@ function onStop() {
   if (T.teeter > 0 && d < 45 && !cupBlocked(c) && Math.random() < .75) { T.teeter--; startAnim('teeter', { bx: ball.x, by: ball.y }); return; }
   // stopped close: the green turns out to slope back toward where you hit from
   if (T.slope > 0 && !ball.trolled && d > 45 && d < 150 && strokes > 0 && Math.random() < .5) { T.slope--; startAnim('slope'); return; }
+  if (nextShotTrolls(d)) return;
   if (ball.minD < 30 && d > 40 && !ball.trolled) { toast(pick(LINES.nearmiss), 1700); sfx.groan(); addRage(7); return; }
   if (strokes > 0 && Math.random() < .35) { toast(pick(LINES[rage >= 60 ? 'meantaunt' : 'taunt']), 1600); addRage(3); }
 }
@@ -1297,6 +1326,8 @@ function startAnim(type, data = {}) {
     tone(900, .15, 'sawtooth', .08, 1300); tone(1000, .15, 'sawtooth', .08, 1400, .2);
   }
   if (type === 'ufo') { tone(200, 2, 'sine', .08, 900); tone(210, 2, 'sine', .06, 880, .1); }
+  if (type === 'dog') dogStart(A);
+  if (type === 'raccoon') raccoonStart(A);
 }
 function endAnim() { T.anim = null; if (state === 'troll') state = 'play'; }
 
@@ -1388,7 +1419,9 @@ function trollAnim(dt) {
       toast(pick(LINES.slope), 2200); addRage(10); tone(300, .5, 'sine', .1, 150);
       endAnim();
     }
-  } else if (A.type === 'trap') {
+  } else if (A.type === 'dog') dogAnim(A);
+  else if (A.type === 'raccoon') raccoonAnim(A);
+  else if (A.type === 'trap') {
     // it drops into a fake cup and comes back out at the tee
     ball.x += (A.c.x - ball.x) * .25; ball.y += (A.c.y - ball.y) * .25;
     A.shrink = Math.min(1, A.t / .35);
@@ -1413,7 +1446,150 @@ function trollFx(dt) {
       vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 220, life: .9, max: .9, color: '#ffffff', size: 3 });
   }
   for (const k of ['hand']) if (T.fx[k] > 0) T.fx[k] -= dt;
-  for (const k of ['gust', 'ufo', 'crow']) if (T.fx[k]) { T.fx[k].t -= dt; if (T.fx[k].t <= 0) T.fx[k] = null; }
+  for (const k of ['gust', 'ufo', 'crow', 'dog']) if (T.fx[k]) { T.fx[k].t -= dt; if (T.fx[k].t <= 0) T.fx[k] = null; }
+}
+
+// ----- more trolls: the dog, the groundskeeper, the flag thief, the power cut, mirror mode and the banana peel -----
+// the dog runs onto the green, grabs the ball and drops it somewhere far away (still with a clear shot)
+function dogStart(A) {
+  A.drop = freeSpot(300, hole.cup) || hole.start;
+  A.fx = ball.x < W / 2 ? -120 : W + 120; A.fy = ball.y + (Math.random() - .5) * 200;
+  A.dx = A.fx; A.dy = A.fy;
+  sfx.bark();
+}
+function dogAnim(A) {
+  const [tx, ty] = A.drop;
+  if (A.t < 1) { const k = ease(A.t); A.dx = A.fx + (ball.x - A.fx) * k; A.dy = A.fy + (ball.y - A.fy) * k; }
+  else if (A.t < 2.6) {
+    if (!A.grab) { A.grab = 1; A.bx = ball.x; A.by = ball.y; toast(pick(LINES.dog), 2000); addRage(13); sfx.bark(); }
+    const k = ease((A.t - 1) / 1.6);
+    A.dx = A.bx + (tx - A.bx) * k; A.dy = A.by + (ty - A.by) * k;
+    ball.x = A.dx; ball.y = A.dy; ball.carryH = 14;
+  } else {
+    ball.carryH = undefined; ball.x = tx; ball.y = ty; ball.vx = ball.vy = 1; ball.moving = true; ball.trolled = true;
+    T.fx.dog = { t: 1.6, x: tx, y: ty, dir: tx < W / 2 ? -1 : 1 };
+    sfx.bark(); laugh(); endAnim();
+  }
+}
+
+// the groundskeeper drives a mower straight across your shot and knocks the ball away
+function mowerTick(dt) {
+  const M = T.mowerOn;
+  if (M) {
+    M.x += M.vx * dt; M.y += M.vy * dt; M.t += dt;
+    if (Math.random() < dt * 30) particles.push({ x: M.x - M.vx * .08, y: M.y - M.vy * .08, z: 6, vx: (Math.random() - .5) * 80, vy: (Math.random() - .5) * 80,
+      vz: 120 + Math.random() * 120, life: .6, max: .6, color: course.theme === 'grass' ? '#5cbf4a' : DUST[course.theme], size: 3 });
+    const d = Math.hypot(ball.x - M.x, ball.y - M.y);
+    if (!M.hit && ball.moving && !(ball.air > 0) && d < 36 + item.r) {
+      M.hit = true;
+      const s = Math.hypot(M.vx, M.vy), nx = M.vx / s, ny = M.vy / s;
+      ball.vx = ball.vx * .4 + nx * 420; ball.vy = ball.vy * .4 + ny * 420; ball.trolled = true;
+      shake = 5; sfx.wall(800); noise(.2, .35, 900);
+      toast(pick(LINES[course.theme === 'moon' ? 'roverhit' : 'mowerhit']), 1800); addRage(12);
+    }
+    if (M.t > 6 || M.x < -160 || M.x > W + 160 || M.y < -160 || M.y > H + 160) T.mowerOn = null;
+    return;
+  }
+  // set off once the ball is properly rolling, heading somewhere other than right next to the cup
+  const c = realCup(), sp = Math.hypot(ball.vx, ball.vy);
+  if (T.mower > 0 && ball.moving && !(ball.air > 0) && sp > 220 && Math.hypot(c.x - ball.x, c.y - ball.y) > 160) {
+    // aim to cross the ball's path about 0.7 s ahead of it
+    const tAhead = .7, px = ball.x + ball.vx * tAhead * .7, py = ball.y + ball.vy * tAhead * .7;
+    if (px < B + 40 || px > W - B - 40 || py < B + 40 || py > H - B - 40) return;
+    T.mower--;
+    const side = Math.random() < .5 ? -1 : 1, nx = -ball.vy / sp * side, ny = ball.vx / sp * side, v = 330;
+    T.mowerOn = { x: px - nx * v * tAhead, y: py - ny * v * tAhead, vx: nx * v, vy: ny * v, t: 0, hit: false };
+    toast(pick(LINES[course.theme === 'moon' ? 'rover' : 'mower']), 1500); sfx.motor();
+  }
+}
+
+// a banana peel lands right in front of the rolling ball, and the ball spins out on it
+function peelTick() {
+  const P = T.peelOn;
+  if (P) {
+    if (P.h > 0) P.h = Math.max(0, P.h - drawDt * 260);
+    if (!P.used && P.h === 0 && ball.moving && !(ball.air > 0) && Math.hypot(ball.x - P.x, ball.y - P.y) < item.r + 14) {
+      P.used = true;
+      const a = (Math.random() < .5 ? -1 : 1) * (1 + Math.random() * .8), c = Math.cos(a), s = Math.sin(a);
+      [ball.vx, ball.vy] = [(ball.vx * c - ball.vy * s) * 1.15, (ball.vx * s + ball.vy * c) * 1.15];
+      ball.trolled = true; ball.squash = 1;
+      sfx.slip(); toast(pick(LINES.peel), 1700); addRage(11);
+    }
+    return;
+  }
+  const c = realCup(), dx = c.x - ball.x, dy = c.y - ball.y, d = Math.hypot(dx, dy), sp = Math.hypot(ball.vx, ball.vy);
+  if (T.peel > 0 && !T.peelThisShot && ball.moving && !(ball.air > 0) && d > 70 && d < 240 && sp > 120 && dx * ball.vx + dy * ball.vy > 0) {
+    T.peel--; T.peelThisShot = true;
+    const k = Math.min(70, d - 40) / sp;
+    T.peelOn = { x: ball.x + ball.vx * k, y: ball.y + ball.vy * k, h: 120, rot: Math.random() * TAU, used: false };
+    tone(1200, .15, 'sine', .08, 600);
+  }
+}
+
+// the raccoon steals the flag and turfs over the cup: you have to remember where it was
+function raccoonStart(A) {
+  const c = realCup();
+  A.fx = c.x < W / 2 ? -120 : W + 120; A.fy = c.y + (Math.random() - .5) * 240;
+  A.rx = A.fx; A.ry = A.fy;
+}
+function raccoonAnim(A) {
+  const c = realCup();
+  if (A.t < 1.1) { const k = ease(A.t / 1.1); A.rx = A.fx + (c.x - A.fx) * k; A.ry = A.fy + (c.y - A.fy) * k; }
+  else if (A.t < 1.5) {
+    if (!A.grab) { A.grab = 1; T.hidden = 2; toast(pick(LINES.raccoon), 2400); addRage(12); noise(.3, .2, 2500); for (let i = 0; i < 20; i++) puff(c.x, c.y, DUST[course.theme], 140, .6, 4); }
+  } else if (A.t < 2.6) { const k = ease((A.t - 1.5) / 1.1); A.rx = c.x + (A.fx - c.x) * k; A.ry = c.y + (A.fy - c.y) * k; }
+  else { laugh(); endAnim(); }
+}
+const cupHidden = c => c.real && T.hidden > 0 && !(T.anim && T.anim.type === 'raccoon' && !T.anim.grab);
+
+// the power goes out for a shot: just a spotlight on the ball and a little light on the flag
+const dark = $('dark'), dctx = dark.getContext('2d'), projV = new THREE.Vector3();
+function toScreen(x, y, h) {
+  projV.set(wx(x), h, wz(y)).project(camera);
+  return [(projV.x + 1) / 2 * dark.width, (1 - projV.y) / 2 * dark.height];
+}
+function drawDark() {
+  const on = T.dark && (state === 'play' || state === 'troll' || state === 'sinking');
+  dark.classList.toggle('show', !!on);
+  if (!on) return;
+  const r = canvas.getBoundingClientRect();
+  if (dark.width !== Math.round(r.width) || dark.height !== Math.round(r.height)) { dark.width = Math.round(r.width); dark.height = Math.round(r.height); }
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0, 0, dark.width, dark.height);
+  dctx.fillStyle = 'rgba(4,6,14,.95)'; dctx.fillRect(0, 0, dark.width, dark.height);
+  dctx.globalCompositeOperation = 'destination-out';
+  const hole2 = (x, y, rad) => {
+    const g = dctx.createRadialGradient(x, y, rad * .45, x, y, rad);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.arc(x, y, rad, 0, TAU); dctx.fill();
+  };
+  const k = dark.width / 1000;
+  if (!ball.gone) { const [bx, by] = toScreen(ball.x, ball.y, 10); hole2(bx, by, 95 * k); }
+  // a little blinking light on the flag (unless the raccoon has the flag, in which case: good luck)
+  const c = realCup(), blink = Math.sin(time * 6) > -.3 && !cupHidden(c);
+  const [fx, fy] = toScreen(c.x, c.y, 102);
+  if (blink) hole2(fx, fy, 16 * k);
+  dctx.globalCompositeOperation = 'source-over';
+  if (blink) { dctx.fillStyle = '#ff3b3b'; dctx.beginPath(); dctx.arc(fx, fy, 4 * k + 2, 0, TAU); dctx.fill(); }
+}
+
+// called after the ball stops: maybe set up a mean surprise for the next shot
+function endShotTrolls() {
+  if (T.dark) { T.dark = false; toast('💡 The power is back. Huh, look at that.', 1600); }
+  if (T.hidden > 0 && --T.hidden === 0) toast('🦝 Fine. The flag is back.', 1600);
+}
+function nextShotTrolls(d) {
+  if (T.blackout > 0 && d > 140 && Math.random() < .5) {
+    T.blackout--; T.dark = true;
+    toast(pick(LINES.blackout), 2000); addRage(8); tone(120, .5, 'sawtooth', .1, 40); noise(.3, .2, 300);
+    return true;
+  }
+  if (T.mirror > 0 && Math.random() < .45) {
+    T.mirror--; T.mirrorOn = true;
+    toast(pick(LINES.mirror), 2200); addRage(6); tone(660, .15, 'triangle', .1, 880); tone(880, .15, 'triangle', .1, 660, .15);
+    return true;
+  }
+  return false;
 }
 
 // ---------- Crumbling ground: bits of the course break off ----------
@@ -2230,6 +2406,109 @@ function alienModel() {
   return g;
 }
 
+// ----- the newer trolls as 3D models (facing +X, standing at the origin) -----
+// a golden retriever with legs on pivots so it can run
+function dogModel() {
+  const g = new THREE.Group(), fur = L(0xd9a35f), dark = L(0x8a5a2b), nose = shiny(0x111111, 140);
+  part(g, SPH(), fur, 0, 22, 0).scale.set(20, 10, 10);
+  part(g, SPH(), fur, 20, 32, 0).scale.set(10, 9, 8.5);
+  part(g, SPH(), fur, 29, 29, 0).scale.set(7, 5, 5.5);
+  part(g, SPH(10), nose, 35.5, 30, 0).scale.setScalar(2.2);
+  part(g, new THREE.BoxGeometry(6, 1.4, 4), L(0xff7a8a), 30, 24.5, 0).rotation.z = -.3; // tongue
+  for (const s of [-1, 1]) {
+    part(g, SPH(10), shiny(0x111111, 140), 26, 35, s * 4.5).scale.setScalar(1.6);
+    const ear = part(g, SPH(10), dark, 17, 33, s * 8); ear.scale.set(4, 7, 2); ear.rotation.x = s * .3;
+  }
+  part(g, new THREE.BoxGeometry(3, 7, 15), L(0xd62828), 13, 30, 0); // collar
+  g.userData.legs = [[12, 6], [12, -6], [-12, 6], [-12, -6]].map(([x, z], i) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, 18, z); g.add(pivot);
+    part(pivot, new THREE.CylinderGeometry(2.6, 2.2, 18, 8), fur, 0, -9, 0);
+    pivot.userData.phase = i % 3 === 0 ? 0 : Math.PI;
+    return pivot;
+  });
+  const tail = new THREE.Group(); tail.position.set(-19, 26, 0); g.add(tail);
+  part(tail, new THREE.CylinderGeometry(1.6, 2.4, 14, 8), fur, -4, 5, 0).rotation.z = .9;
+  g.userData.tail = tail;
+  return g;
+}
+
+// a ride-on mower with a groundskeeper in a cap (or a moon rover with an astronaut)
+function mowerModel() {
+  const g = new THREE.Group(), moon = course.theme === 'moon';
+  const body = moon ? shiny(0xd8dde3, 90) : L(0xd62828), seatC = moon ? L(0x333840) : L(0x222222);
+  part(g, new THREE.BoxGeometry(46, 14, 30), body, 0, 14, 0);
+  part(g, new THREE.BoxGeometry(18, 10, 26), body, 16, 24, 0);
+  part(g, new THREE.BoxGeometry(12, 4, 16), seatC, -8, 24, 0);
+  part(g, new THREE.BoxGeometry(3, 16, 14), seatC, -14, 31, 0);
+  g.userData.wheels = [];
+  for (const [x, z, r] of [[16, 15, 7], [16, -15, 7], [-14, 16, 9], [-14, -16, 9]]) {
+    const w = part(g, new THREE.CylinderGeometry(r, r, 6, 14), L(0x1a1a1a), x, r, z);
+    w.rotation.x = Math.PI / 2; g.userData.wheels.push(w);
+  }
+  // the driver
+  part(g, new THREE.CylinderGeometry(6, 7, 16, 10), moon ? L(0xf2f2f2) : L(0x3d7fd9), -6, 34, 0);
+  part(g, SPH(14), moon ? shiny(0xf2f2f2) : L(0xffc999), -6, 47, 0).scale.setScalar(moon ? 7.5 : 6);
+  if (moon) part(g, SPH(14), shiny(0x2a3550, 160), -2, 47, 0).scale.set(4.5, 4.5, 5.5);
+  else {
+    part(g, new THREE.SphereGeometry(6.3, 14, 8, 0, TAU, 0, Math.PI / 2), L(0x2f8a3a), -6, 49, 0);
+    part(g, new THREE.BoxGeometry(8, 1.2, 9), L(0x2f8a3a), -1, 49.5, 0);
+  }
+  part(g, new THREE.CylinderGeometry(.8, .8, 14, 6), L(0x888888), 6, 34, 0).rotation.z = -.6; // steering column
+  if (moon) { const dish = part(g, new THREE.SphereGeometry(7, 12, 6, 0, TAU, 0, Math.PI / 2), L(0xf2f2f2), 14, 40, 0); dish.rotation.z = 1; }
+  return g;
+}
+
+// a raccoon in its burglar mask, with a ringed tail
+function raccoonModel() {
+  const g = new THREE.Group(), grey = L(0x8d8f96), dark = L(0x2b2c31), light = L(0xe8e6e1);
+  part(g, SPH(), grey, 0, 16, 0).scale.set(15, 9, 9);
+  part(g, SPH(), grey, 15, 22, 0).scale.set(8, 7, 7);
+  part(g, SPH(), light, 21, 20, 0).scale.set(5, 3.5, 4.5);
+  part(g, SPH(10), shiny(0x111111, 140), 25.5, 20.5, 0).scale.setScalar(1.6);
+  part(g, SPH(), dark, 18.5, 24, 0).scale.set(3, 2.6, 7.6); // the mask
+  for (const s of [-1, 1]) {
+    part(g, SPH(10), shiny(0x111111, 160), 21, 24.5, s * 3.4).scale.setScalar(1.5);
+    part(g, SPH(10), light, 18.6, 25.2, s * 4.2).scale.setScalar(.7);
+    part(g, new THREE.ConeGeometry(2.6, 5, 8), grey, 12, 30, s * 4.5);
+  }
+  g.userData.legs = [[8, 5], [8, -5], [-8, 5], [-8, -5]].map(([x, z], i) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, 12, z); g.add(pivot);
+    part(pivot, new THREE.CylinderGeometry(2.2, 2, 12, 8), dark, 0, -6, 0);
+    pivot.userData.phase = i % 3 === 0 ? 0 : Math.PI;
+    return pivot;
+  });
+  for (let i = 0; i < 5; i++) part(g, SPH(10), i % 2 ? dark : grey, -15 - i * 3.4, 18 + i * 2.6, 0).scale.set(3, 3.2, 3.2);
+  return g;
+}
+
+// a banana peel lying on the green
+function peelModel() {
+  const g = new THREE.Group(), yellow = L(0xffd84a), brown = L(0x6b4a1f);
+  part(g, SPH(), L(0xfff3c4), 0, 2.5, 0).scale.set(6, 3, 6);
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + .3, flap = part(g, SPH(), yellow, Math.cos(a) * 9, 1.6, Math.sin(a) * 9);
+    flap.scale.set(9, 1.4, 4); flap.rotation.y = -a;
+  }
+  part(g, new THREE.CylinderGeometry(1.4, 2, 6, 8), brown, 0, 7, 0);
+  return g;
+}
+
+// turn a model toward where it's heading (it faces +X)
+function faceMove(o, x, y) {
+  const px = o.position.x, pz = o.position.z;
+  place(o, x, y, o.position.y);
+  const dx = o.position.x - px, dz = o.position.z - pz;
+  if (Math.hypot(dx, dz) > .3) {
+    let d = -Math.atan2(dz, dx) - o.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
+    o.rotation.y += d * .3;
+    return true;
+  }
+  return false;
+}
+function runLegs(o, moving) {
+  for (const p of o.userData.legs || []) p.rotation.z = moving ? Math.sin(time * 18 + p.userData.phase) * .7 : 0;
+}
+
 // ----- how each course looks -----
 const THEMES = {
   grass:  { sky: 0x9fd8ff, floor: 0x4f9e4b, rail: '#4a3423', fringe: 'rgba(30,95,38,.32)', sand: ['#f8e7b4', '#e2c37f'], sandEdge: 'rgba(110,75,25,.55)',
@@ -2775,6 +3054,10 @@ function build3D() {
   if (T.gust) U0.wind = prop(windModel());
   if (T.ufo) { U0.ufo = ufoModel(); U0.ufo.visible = false; level3D.add(U0.ufo); }
   if (T.var) U0.tv = prop(tvModel());
+  if (T.dog) U0.dog = prop(dogModel());
+  if (T.mower) U0.mower = prop(mowerModel());
+  if (T.raccoon) U0.raccoon = prop(raccoonModel());
+  if (T.peel) U0.peel = prop(peelModel());
   U0.pulls = hole.pulls.map(pl => { const o = pullModel(pl); place(o, pl[0], pl[1]); level3D.add(o); return o; });
 
   // the item, its shadow and the club
@@ -2993,7 +3276,7 @@ function drawDecals() {
       }
     }
   }
-  for (const c of cups) drawCup(c);
+  for (const c of cups) if (!cupHidden(c)) drawCup(c);
   for (const r of hole.water) drawWaterSurface(r);
   for (const bz of hole.boosts) drawBoost(bz);
   for (const pl of hole.pulls) { // a swirl on the ground under each black hole
@@ -3074,6 +3357,35 @@ function drawTrolls(U) {
   for (const { g } of U.bumpers) if (g.userData.spin) { g.userData.spin.rotation.y += drawDt * .6; g.userData.spin.rotation.x += drawDt * .3; }
   if (U.earth) U.earth.rotation.y += drawDt * .05;
   for (const f of U.sceneryAnim || []) f(time, drawDt);
+  if (U.dog) {
+    const mine = A && A.type === 'dog', L = T.fx.dog, o = U.dog;
+    o.visible = !!(mine || L);
+    if (o.visible) {
+      let x, y;
+      if (mine) { x = A.dx; y = A.dy; } else { const k = 1 - L.t / 1.6; x = L.x + L.dir * k * 800; y = L.y; }
+      const moving = faceMove(o, x, y);
+      o.position.y = moving ? Math.abs(Math.sin(time * 14)) * 3 : 0;
+      runLegs(o, moving); o.userData.tail.rotation.x = Math.sin(time * 20) * .6;
+    }
+  }
+  if (U.raccoon) {
+    const mine = A && A.type === 'raccoon', o = U.raccoon;
+    o.visible = !!mine;
+    if (mine) { const moving = faceMove(o, A.rx, A.ry); o.position.y = moving ? Math.abs(Math.sin(time * 16)) * 2 : 0; runLegs(o, moving); }
+  }
+  if (U.mower) {
+    const M = T.mowerOn, o = U.mower;
+    o.visible = !!M;
+    if (M) {
+      place(o, M.x, M.y, Math.abs(Math.sin(time * 20)) * 1.2); o.rotation.y = -Math.atan2(M.vy, M.vx);
+      for (const w of o.userData.wheels) w.rotation.y += drawDt * 12;
+    }
+  }
+  if (U.peel) {
+    const P = T.peelOn, o = U.peel;
+    o.visible = !!P;
+    if (P) { place(o, P.x, P.y, P.h); o.rotation.y = P.rot + (P.h > 0 ? time * 10 : 0); }
+  }
   if (U.tv) {
     U.tv.visible = !!(A && A.type === 'var');
     if (U.tv.visible) { place(U.tv, c.x, c.y, 140 + Math.sin(time * 3) * 3); turnToCamera(U.tv); }
@@ -3168,8 +3480,10 @@ function draw() {
     faceCamera(o.s);
   }
   cups.forEach((c, i) => {
-    const F = U.flags[i], p = F.cloth.geometry.attributes.position;
-    place(F.g, c.x, c.y);
+    const F = U.flags[i], p = F.cloth.geometry.attributes.position, A = T.anim;
+    // the raccoon runs off with the flag, and while the cup is hidden there is no flag at all
+    if (c.real && A && A.type === 'raccoon' && A.grab) { F.g.visible = true; place(F.g, A.rx - 6, A.ry, 6); F.g.rotation.z = .5; }
+    else { F.g.visible = !cupHidden(c); F.g.rotation.z = 0; place(F.g, c.x, c.y); }
     for (let k = 0; k < p.count; k++) { const u = (p.getX(k) + 23) / 46; p.setZ(k, Math.sin(time * 5 - u * 4 + i) * 5 * u); }
     p.needsUpdate = true;
   });
@@ -3257,7 +3571,8 @@ function draw() {
   pGeo.setDrawRange(0, n);
   pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = true;
 
-  $('hint').classList.toggle('show', state === 'play' && !ball.moving && !aim && strokes === 0 && !ball.gone);
+  $('hint').textContent = T.mirrorOn ? '🪞 Mirror mode: left and right are flipped' : 'Drag back to aim, let go to swing';
+  $('hint').classList.toggle('show', state === 'play' && !ball.moving && !ball.gone && (T.mirrorOn || (!aim && strokes === 0)));
   updateCamera(drawDt);
   renderPixel();
 }
@@ -3265,7 +3580,7 @@ function draw() {
 // ---------- Minimap ----------
 const mini = $('mini'), mctx = mini.getContext('2d');
 function drawMini() {
-  const on = state === 'play' || state === 'sinking' || state === 'troll';
+  const on = (state === 'play' || state === 'sinking' || state === 'troll') && !T.dark;
   mini.classList.toggle('show', on);
   if (!on) return;
   const k = mini.width / W;
@@ -3281,6 +3596,7 @@ function drawMini() {
   mctx.fillStyle = '#120a05';
   for (const ch of chunks) if (ch.st === 'fall' || ch.st === 'gone') { mctx.beginPath(); ch.pts.forEach(([x, y]) => mctx.lineTo(x, y)); mctx.fill(); }
   for (const c of cups) {
+    if (cupHidden(c)) continue;
     mctx.fillStyle = '#fff'; circle(c.x, c.y, 22, mctx); mctx.fill();
     mctx.fillStyle = '#000'; circle(c.x, c.y, 13, mctx); mctx.fill();
     mctx.fillStyle = '#ff4f4f'; mctx.fillRect(c.x, c.y - 52, 26, 18); mctx.fillStyle = '#fff'; mctx.fillRect(c.x - 2, c.y - 52, 4, 52);
@@ -3322,7 +3638,7 @@ function frame(now) {
     if (ball.moving && state === 'play') { ball.trail.push([ball.x, ball.y]); if (ball.trail.length > 12) ball.trail.shift(); }
     else if (ball.trail.length) ball.trail.shift();
   }
-  if (hole) { draw(); drawMini(); }
+  if (hole) { draw(); drawMini(); drawDark(); }
   requestAnimationFrame(frame);
 }
 
