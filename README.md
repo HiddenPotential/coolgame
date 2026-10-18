@@ -1,12 +1,12 @@
 # 😡 Wacky Rage Golf
 
-Three courses of pixel-art 3D mini golf, nine holes each. Every single hole is out to get you.
+Three courses of pixel-art 3D mini golf, 18 holes each. Every single hole is out to get you.
 
 Pick a course on the course map (🗺️):
 
 - 🌳 **Meadow Links**: green grass, ponds, and a hand that lives in the cup.
-- 🌵 **Dune Desert**: quicksand, cactus bumpers, camels crossing, vultures, sandstorms, mirage cups and a sinkhole.
-- 🌙 **Moon Base**: low gravity (lobs float, things roll further), black holes that suck your ball in, asteroids, the space void, and the UFO is home.
+- 🌵 **Dune Desert**: quicksand, cactus bumpers, camels crossing, vultures, sandstorms, mirage cups and sinkholes. The back nine adds a camel caravan, a zig-zag scorpion pass, twin sinkholes, a quicksand maze, dune buggies and a mirage market.
+- 🌙 **Moon Base**: low gravity (lobs float, things roll further), black holes that suck your ball in, asteroids, the space void, and the UFO is home. The back nine adds a satellite slalom, the dark side (power cuts), binary black holes, an asteroid storm, a launch pad over the void and a space junkyard.
 
 A minimap in the corner shows the whole hole. The holes of Meadow Links:
 
@@ -20,7 +20,16 @@ A minimap in the corner shows the whole hole. The holes of Meadow Links:
 | 6 | Pick a Cup | Three cups, two trapdoors. Fall in a fake and you go back to the tee and the cups shuffle. |
 | 7 | Whack-a-Mole | Someone lives in the cup and pops up to swat your ball away. |
 | 8 | Moving Day | "Pin position updated." The hole moves when you get close. |
-| 9 | The Final Insult | A UFO beams your ball out of the cup and flies it back to the tee. Plus wind. Plus the bird. |
+| 9 | Dogleg Left | An L-shaped hole. Emphasis on dog. |
+| 10 | Mower Lanes | The groundskeeper mows the fairway during your round. |
+| 11 | Banana Republic | Someone has been eating bananas on the green. |
+| 12 | Lights Out | Two power cuts in a zig-zag. Remember the layout. |
+| 13 | Raccoon Ridge | A raccoon is after the flag. |
+| 14 | Mirror Lake | Round the lake, with mirror mode. |
+| 15 | Windmill Classic | A windmill gate, and VAR reviewing every putt. |
+| 16 | Bumper Cars | Bumpers, wind and a dog. |
+| 17 | Island Green | Take the narrow bridge or lob it, then watch out for the hand. |
+| 18 | The Final Insult | A UFO beams your ball out of the cup and flies it back to the tee. Plus wind. Plus the bird. |
 
 On top of these, the desert and moon add **VAR review**, which watches your putt go in and then disallows it.
 

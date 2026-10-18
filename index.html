@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<meta name="description" content="Nine holes of 3D mini golf where the course is out to get you.">
+<meta name="description" content="Three 18-hole courses of 3D mini golf where the course is out to get you.">
 <style>
   :root {
     --bg: #1d2b1f;
@@ -78,7 +78,7 @@
   .course .e { font-size: 46px; line-height: 1.1; }
   .course b { font-size: 18px; }
   .course .d { font-size: 12.5px; line-height: 1.3; opacity: .85; }
-  .course .holes { display: flex; gap: 4px; margin-top: 6px; }
+  .course .holes { display: grid; grid-template-columns: repeat(9, 16px); gap: 4px; margin-top: 6px; justify-content: center; }
   .course .holes span { width: 16px; height: 16px; border-radius: 0; font-size: 9px; line-height: 16px; background: rgba(255,255,255,.55); color: #2b2118; font-weight: 700; }
   .course .best { font-size: 12px; font-weight: 700; margin-top: 4px; }
   @media (max-width: 640px) { #mini { display: none; } }
@@ -106,7 +106,8 @@
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c4501d; }
   .small { font-size: 13px; color: var(--muted); }
   .btn.alt { background: #4c9be8; box-shadow: 0 4px 0 #2b6cb0; }
-  table.score { border-collapse: collapse; margin: 10px auto; font-size: 14px; width: 100%; }
+  table.score { border-collapse: collapse; margin: 10px auto; font-size: 13px; width: 100%; }
+  table.score td, table.score th { padding: 2px 6px !important; }
   table.score td, table.score th { border-bottom: 1px solid #e3d7b8; padding: 3px 6px; }
   table.score th { text-align: left; }
   table.score td { text-align: center; }
@@ -193,7 +194,7 @@
     <div class="screen" id="mapScreen">
       <div class="card wide">
         <h2>🗺️ Pick a course</h2>
-        <p class="small">Three courses, nine holes each. All of them hate you.</p>
+        <p class="small">Three courses, 18 holes each. All of them hate you.</p>
         <div class="courses" id="courseList"></div>
       </div>
     </div>
@@ -308,6 +309,44 @@ const HOLES = [
     movers: [[420, 30, 30, 190, 0, 390, 2.4, 0]],
     trolls: { relocate: [[820, 500], [560, 320]] },
     tip: 'Pin positions may change. For operational reasons.' },
+  // ----- the back nine -----
+  { name: 'Dogleg Left', item: 'golf', par: 4, start: [120, 520], cup: [200, 130],
+    walls: [[20, 270, 700, 24]], bumpers: [[860, 300, 26]],
+    trolls: { dog: 1 },
+    tip: 'A classic dogleg. Emphasis on dog.' },
+  { name: 'Mower Lanes', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    sand: [[420, 40, 120, 120], [420, 480, 120, 120]],
+    trolls: { mower: 2 },
+    tip: 'The groundskeeper is mowing the fairway. Right now. During your round.' },
+  { name: 'Banana Republic', item: 'golf', par: 3, start: [120, 160], cup: [840, 480],
+    bumpers: [[400, 260, 26], [610, 380, 26]],
+    trolls: { peel: 2 },
+    tip: 'Somebody has been eating bananas on the green.' },
+  { name: 'Lights Out', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    walls: [[350, 20, 24, 380], [620, 240, 24, 380]],
+    trolls: { blackout: 2 },
+    tip: 'Remember the layout. You may need it.' },
+  { name: 'Raccoon Ridge', item: 'golf', par: 4, start: [100, 540], cup: [880, 140],
+    water: [[380, 200, 220, 200]], sand: [[700, 380, 140, 110]],
+    trolls: { raccoon: 1 },
+    tip: 'Keep an eye on the flag.' },
+  { name: 'Mirror Lake', item: 'golf', par: 3, start: [120, 320], cup: [880, 320],
+    water: [[330, 170, 340, 300]],
+    trolls: { mirror: 2 },
+    tip: 'Mirror, mirror, on the lake…' },
+  { name: 'Windmill Classic', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    walls: [[440, 20, 120, 170], [440, 450, 120, 170]], mills: [[500, 320, 95, 1.3]],
+    trolls: { var: 1 },
+    tip: 'Time the windmill. The officials are reviewing every putt.' },
+  { name: 'Bumper Cars', item: 'golf', par: 3, start: [120, 520], cup: [860, 140],
+    bumpers: [[300, 380, 26], [420, 220, 26], [540, 420, 26], [660, 260, 26], [760, 440, 26]],
+    trolls: { gust: 1, dog: 1 },
+    tip: 'Bumpers, wind, and a dog. A lovely afternoon.' },
+  { name: 'Island Green', item: 'golf', par: 4, start: [120, 320], cup: [830, 320],
+    water: [[600, 120, 380, 80], [600, 440, 380, 80], [600, 200, 80, 90], [600, 350, 80, 90]],
+    trolls: { thief: 1 },
+    tip: 'Island green. Take the narrow bridge, or lob it with the wedge.' },
+  // ----- the finale -----
   { name: 'The Final Insult', item: 'golf', par: 5, start: [100, 540], cup: [880, 120],
     water: [[300, 390, 250, 230]], sand: [[610, 20, 110, 90]],
     walls: [[640, 280, 340, 26]], bumpers: [[480, 200, 24]],
@@ -351,6 +390,43 @@ const DESERT = [
     bumpers: [[420, 320, 24]],
     trolls: { var: 1 },
     tip: 'Enter the pyramid from the back. The officials are watching.' },
+  // ----- the back nine -----
+  { name: 'Camel Caravan', item: 'golf', par: 3, start: [120, 320], cup: [870, 320],
+    movers: [[340, 40, 70, 60, 0, 480, 2.8, 0, '🐫'], [550, 520, 70, 60, 0, -460, 2.2, 1, '🐫'], [750, 40, 70, 60, 0, 480, 3.4, 2, '🐫']],
+    trolls: { peel: 1 },
+    tip: 'Three camels and a banana. Just another day in the desert.' },
+  { name: 'Scorpion Pass', item: 'golf', par: 4, start: [120, 540], cup: [880, 540],
+    walls: [[260, 20, 24, 440], [520, 180, 24, 440], [760, 20, 24, 440]],
+    trolls: { dog: 1 },
+    tip: 'Zig, zag, zig. A desert dog patrols the pass.' },
+  { name: 'Twin Sinkholes', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    pulls: [[420, 170, 115, 900], [620, 470, 115, 900]],
+    trolls: { gust: 1 },
+    tip: 'Thread between the sinkholes. Sandstorms are "rare".' },
+  { name: 'Sun Dial', item: 'golf', par: 3, start: [120, 320], cup: [870, 320],
+    mills: [[500, 320, 120, 1.2]], bumpers: [[500, 110, 22], [500, 530, 22]],
+    trolls: { blackout: 1 },
+    tip: 'Watch the shadow go round. Then watch the sun go out.' },
+  { name: 'Quicksand Maze', item: 'golf', par: 4, start: [120, 540], cup: [880, 540],
+    water: [[250, 20, 100, 360], [480, 260, 100, 360], [710, 20, 100, 360]],
+    trolls: { mirror: 1 },
+    tip: 'Under, over, under. Possibly backwards.' },
+  { name: 'Dune Buggy', item: 'golf', par: 3, start: [120, 320], cup: [880, 320],
+    boosts: [[300, 250, 150, 140, 0], [600, 250, 150, 140, 0]],
+    trolls: { mower: 2 },
+    tip: 'The dunes speed you up. Something else is out on the dunes.' },
+  { name: 'Vulture Valley', item: 'golf', par: 3, start: [120, 320], cup: [870, 320],
+    sand: [[300, 60, 150, 150], [300, 430, 150, 150], [620, 60, 150, 150], [620, 430, 150, 150]],
+    trolls: { crow: 2, crowDrops: [[375, 135], [375, 505], [695, 135], [695, 505]] },
+    tip: 'The vultures are circling. Finish quickly.' },
+  { name: 'Raccoon Rocks', item: 'golf', par: 3, start: [120, 320], cup: [860, 180],
+    bumpers: [[400, 200, 22], [400, 440, 22], [620, 320, 22]],
+    trolls: { raccoon: 1, var: 1 },
+    tip: 'A raccoon, a cactus garden and the officials. Good luck.' },
+  { name: 'Mirage Market', item: 'golf', par: 4, start: [100, 540], cup: [860, 120], fakes: [[860, 320], [860, 520]],
+    walls: [[480, 160, 24, 320]],
+    tip: 'Three cups for sale. Two of them are a scam.' },
+  // ----- the finale -----
   { name: 'Sandstorm Finale', item: 'golf', par: 5, start: [100, 540], cup: [880, 110],
     water: [[300, 380, 240, 240]], bumpers: [[470, 180, 22], [640, 430, 22]],
     walls: [[640, 260, 340, 24]],
@@ -392,6 +468,44 @@ const MOON = [
     movers: [[480, 30, 30, 250, 0, 330, 2.4, 0], [700, 30, 30, 250, 0, 330, 2, 1.5]],
     trolls: { mole: true },
     tip: 'Airlocks cycle every few seconds. A space hamster lives in the cup.' },
+  // ----- the back nine -----
+  { name: 'Lunar Lander', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    sand: [[350, 150, 140, 120], [350, 370, 140, 120], [600, 250, 140, 140]],
+    trolls: { mower: 1 },
+    tip: 'Mind the rover. It does not mind you.' },
+  { name: 'Gravity Well', item: 'golf', par: 3, start: [120, 320], cup: [880, 320],
+    pulls: [[500, 320, 140, 950]], bumpers: [[500, 110, 26], [500, 530, 26]],
+    trolls: { peel: 1 },
+    tip: 'Go around the black hole. Who brought a banana to space?' },
+  { name: 'Satellite Slalom', item: 'golf', par: 4, start: [100, 320], cup: [890, 320],
+    movers: [[300, 30, 60, 50, 0, 540, 2.6, 0, '🛰️'], [520, 560, 60, 50, 0, -520, 2.2, 1, '🛰️'], [740, 30, 60, 50, 0, 540, 3, 2, '🛰️']],
+    trolls: { dog: 1 },
+    tip: 'Three satellites and one very good space dog.' },
+  { name: 'Dark Side', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    walls: [[350, 180, 24, 280], [640, 180, 24, 280]],
+    trolls: { blackout: 2 },
+    tip: 'It is the dark side of the moon. Literally.' },
+  { name: 'Wormhole Express', item: 'golf', par: 3, start: [120, 320], cup: [860, 150], fakes: [[860, 490]],
+    water: [[400, 250, 200, 140]],
+    trolls: { mirror: 1 },
+    tip: 'Two cups, one wormhole, and space is a mirror.' },
+  { name: 'Asteroid Storm', item: 'golf', par: 3, start: [120, 320], cup: [880, 320],
+    bumpers: [[300, 160, 24], [300, 480, 24], [430, 320, 28], [560, 170, 24], [560, 470, 24], [700, 320, 26]],
+    trolls: { gust: 2 },
+    tip: 'Asteroids ahead. The solar wind is picking up.' },
+  { name: 'Binary Stars', item: 'golf', par: 4, start: [100, 540], cup: [890, 110],
+    pulls: [[330, 200, 105, 900], [660, 440, 105, 900]], walls: [[480, 20, 24, 200], [480, 420, 24, 200]],
+    trolls: { raccoon: 1 },
+    tip: 'Two black holes and one sneaky space raccoon.' },
+  { name: 'Moon Bounce', item: 'golf', par: 3, start: [120, 320], cup: [860, 320],
+    boosts: [[300, 50, 170, 110, 0]], water: [[500, 190, 160, 260]],
+    trolls: { lid: true },
+    tip: 'Take the launch pad lane over the top of the void. The lid hates slow putts.' },
+  { name: 'Space Junkyard', item: 'golf', par: 4, start: [100, 320], cup: [880, 480],
+    walls: [[300, 100, 24, 200], [300, 400, 24, 200], [600, 20, 24, 250], [600, 370, 24, 250]], bumpers: [[450, 320, 24], [760, 180, 24]],
+    trolls: { thief: 1, mower: 1 },
+    tip: 'Junk everywhere, a rover on patrol, and a hand in the cup.' },
+  // ----- the finale -----
   { name: 'Final Frontier', item: 'golf', par: 5, start: [100, 540], cup: [880, 110],
     water: [[300, 390, 240, 230]], pulls: [[400, 150, 95, 900]], bumpers: [[780, 420, 26]],
     walls: [[640, 270, 340, 24]],
@@ -669,7 +783,7 @@ function startGame(key = course.key) {
   scores = []; rage = 0; peakRage = 0; rageMarks = 0; quitTries = 0;
   loadHole(0);
 }
-const bestKey = k => k === 'meadow' ? 'wackyRageGolfBest' : 'wackyRageGolfBest_' + k;
+const bestKey = k => 'wackyRageGolf18_' + k;
 function getBest(k = course.key) { try { const v = localStorage.getItem(bestKey(k)); return v === null ? null : +v; } catch (e) { return null; } }
 function showMenu() {
   state = 'title'; aim = null;
