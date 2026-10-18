@@ -33,6 +33,11 @@ On top of that, every hole has two more surprises, once each:
 - **Teeter:** stop right next to the cup and the ball creeps up to the lip, wobbles with a drumroll... and rolls back out.
 - **Sloped green:** stop close to the cup and the green turns out to slope back toward where you hit from.
 
+No two rounds play the same: every time a hole loads it secretly adds a random extra troll or two (wind, the eagle,
+a cup that moves, the hand, the mole, the lid, VAR or the UFO), and usually rolls a random condition, shown on the
+intro card and next to the hole name: 🧊 icy green, 🍯 sticky green, 🏀 bouncy walls, 🫨 shaky hands, 🎲 random power,
+🌬️ a steady breeze or 😵 hiccups. The intro hints whether something extra is hiding. It doesn't always tell the truth.
+
 Slide past the cup and the crowd groans. The 🏳️ Give up button refuses to let you quit (and hops somewhere else),
 and the score card counts how many times you tried.
 
