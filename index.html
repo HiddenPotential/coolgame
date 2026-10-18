@@ -1613,27 +1613,6 @@ function trollFx(dt) {
 }
 
 // ----- more trolls: the dog, the groundskeeper, the flag thief, the power cut, mirror mode and the banana peel -----
-// the dog runs onto the green, grabs the ball and drops it somewhere far away (still with a clear shot)
-function dogStart(A) {
-  A.drop = freeSpot(300, hole.cup) || hole.start;
-  A.fx = ball.x < W / 2 ? -120 : W + 120; A.fy = ball.y + (Math.random() - .5) * 200;
-  A.dx = A.fx; A.dy = A.fy;
-  sfx.bark();
-}
-function dogAnim(A) {
-  const [tx, ty] = A.drop;
-  if (A.t < 1) { const k = ease(A.t); A.dx = A.fx + (ball.x - A.fx) * k; A.dy = A.fy + (ball.y - A.fy) * k; }
-  else if (A.t < 2.6) {
-    if (!A.grab) { A.grab = 1; A.bx = ball.x; A.by = ball.y; toast(pick(LINES.dog), 2000); addRage(13); sfx.bark(); }
-    const k = ease((A.t - 1) / 1.6);
-    A.dx = A.bx + (tx - A.bx) * k; A.dy = A.by + (ty - A.by) * k;
-    ball.x = A.dx; ball.y = A.dy; ball.carryH = 14;
-  } else {
-    ball.carryH = undefined; ball.x = tx; ball.y = ty; ball.vx = ball.vy = 1; ball.moving = true; ball.trolled = true;
-    T.fx.dog = { t: 1.6, x: tx, y: ty, dir: tx < W / 2 ? -1 : 1 };
-    sfx.bark(); laugh(); endAnim();
-  }
-}
 
 // the groundskeeper drives a mower straight across your shot and knocks the ball away
 function mowerTick(dt) {
@@ -2840,30 +2819,127 @@ function alienModel() {
 }
 
 // ----- the newer trolls as 3D models (facing +X, standing at the origin) -----
-// a golden retriever with legs on pivots so it can run
+// a golden retriever: faces +X, paws on the ground. The body sits in its own group so it can
+// bob and sit, the head can dip to grab the ball, and each leg bends at the hip and the knee.
+const DOG_SCALE = 1.5, DOG_MOUTH = 36 * DOG_SCALE, DOG_MOUTH_H = 31;
 function dogModel() {
-  const g = new THREE.Group(), fur = L(0xd9a35f), dark = L(0x8a5a2b), nose = shiny(0x111111, 140);
-  part(g, SPH(), fur, 0, 22, 0).scale.set(20, 10, 10);
-  part(g, SPH(), fur, 20, 32, 0).scale.set(10, 9, 8.5);
-  part(g, SPH(), fur, 29, 29, 0).scale.set(7, 5, 5.5);
-  part(g, SPH(10), nose, 35.5, 30, 0).scale.setScalar(2.2);
-  part(g, new THREE.BoxGeometry(6, 1.4, 4), L(0xff7a8a), 30, 24.5, 0).rotation.z = -.3; // tongue
+  const root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  const gold = L(0xe2a95b), deep = L(0xc48a43), cream = L(0xf3d9a4), black = shiny(0x141414, 150);
+  const at = (parent, geo, m, x, y, z) => part(parent, geo, m, x, y, z);
+  // torso: a deep chest, a long back, a rump and a pale belly
+  at(body, SPH(), gold, 0, 25, 0).scale.set(22, 10.5, 10);
+  at(body, SPH(), gold, 11, 24, 0).scale.set(11, 11.5, 9.5);
+  at(body, SPH(), gold, -14, 26, 0).scale.set(10, 10, 9.5);
+  at(body, SPH(), cream, 0, 19, 0).scale.set(15, 5.5, 7.5);
+  at(body, SPH(), cream, 18, 23, 0).scale.set(5, 8, 6); // the fluffy bib
+  const neck = at(body, SPH(), gold, 19, 32, 0); neck.scale.set(7, 9.5, 7); neck.rotation.z = -.5;
+  // collar and tag
+  // the collar wraps the neck: a flat ring, tilted forward like the neck
+  const collarTilt = new THREE.Group(); collarTilt.position.set(18.5, 31, 0); collarTilt.rotation.z = -.5; body.add(collarTilt);
+  at(collarTilt, new THREE.TorusGeometry(6.4, 1.5, 8, 22), L(0xd62828), 0, 0, 0).rotation.x = Math.PI / 2;
+  at(body, new THREE.CylinderGeometry(1.6, 1.6, .6, 12), shiny(0xffd23d, 150), 22, 25.5, 0).rotation.z = Math.PI / 2;
+  // head on a pivot so it can dip
+  const head = new THREE.Group(); head.position.set(22, 37, 0); body.add(head);
+  at(head, SPH(), gold, 5, 3, 0).scale.set(8.5, 8, 7.5);
+  at(head, SPH(), L(0xeab874), 13, 0, 0).scale.set(7.5, 4.6, 5);
+  at(head, SPH(), cream, 12, -2.6, 0).scale.set(6, 2.2, 4);
+  at(head, SPH(14), black, 19.8, 1.6, 0).scale.set(2.4, 2, 2.8);
+  const tongue = at(head, new THREE.BoxGeometry(5, 1, 3.2), L(0xff7a8a), 14.5, -4.6, 0); tongue.rotation.z = -.35;
   for (const s of [-1, 1]) {
-    part(g, SPH(10), shiny(0x111111, 140), 26, 35, s * 4.5).scale.setScalar(1.6);
-    const ear = part(g, SPH(10), dark, 17, 33, s * 8); ear.scale.set(4, 7, 2); ear.rotation.x = s * .3;
+    at(head, SPH(12), shiny(0x3a2412, 140), 10.4, 5.4, s * 3.7).scale.setScalar(1.7);
+    at(head, SPH(8), L(0xffffff), 11.4, 6.1, s * 3.9).scale.setScalar(.55);
+    at(head, SPH(8), cream, 9.8, 7.8, s * 3.6).scale.set(2.4, .9, 1.7); // eyebrows
+    const ear = new THREE.Group(); ear.position.set(3, 6.5, s * 6.6); head.add(ear);
+    const flap = at(ear, SPH(), deep, 0, -6, s * 1.2); flap.scale.set(3.6, 8, 1.8);
+    ear.userData.side = s;
+    (head.userData.ears = head.userData.ears || []).push(ear);
   }
-  part(g, new THREE.BoxGeometry(3, 7, 15), L(0xd62828), 13, 30, 0); // collar
-  g.userData.legs = [[12, 6], [12, -6], [-12, 6], [-12, -6]].map(([x, z], i) => {
-    const pivot = new THREE.Group(); pivot.position.set(x, 18, z); g.add(pivot);
-    part(pivot, new THREE.CylinderGeometry(2.6, 2.2, 18, 8), fur, 0, -9, 0);
-    pivot.userData.phase = i % 3 === 0 ? 0 : Math.PI;
-    return pivot;
+  // legs: hip pivot -> thigh, knee pivot -> shin and paw
+  const legs = [[13, 20, 5, true], [13, 20, -5, true], [-14, 22, 5.5, false], [-14, 22, -5.5, false]].map(([x, y, z, front], i) => {
+    const hip = new THREE.Group(); hip.position.set(x, y, z); body.add(hip);
+    if (front) at(hip, new THREE.CylinderGeometry(2.9, 2.5, 10, 10), gold, 0, -5, 0);
+    else { at(hip, SPH(), gold, 0, -3, 0).scale.set(4.5, 7, 3.8); at(hip, new THREE.CylinderGeometry(2.7, 2.4, 10, 10), gold, 0, -5.5, 0); }
+    const knee = new THREE.Group(); knee.position.set(0, -10, 0); hip.add(knee);
+    at(knee, new THREE.CylinderGeometry(2.3, 2.1, 9, 10), front ? gold : deep, 0, -4.5, 0);
+    at(knee, SPH(), cream, 1.2, -9.4, 0).scale.set(3.4, 1.7, 3.2);
+    return { hip, knee, front, phase: [0, Math.PI, .6, Math.PI + .6][i] };
   });
-  const tail = new THREE.Group(); tail.position.set(-19, 26, 0); g.add(tail);
-  part(tail, new THREE.CylinderGeometry(1.6, 2.4, 14, 8), fur, -4, 5, 0).rotation.z = .9;
-  g.userData.tail = tail;
-  return g;
+  // a fluffy tail in four segments so it can curl and wag
+  const tail = new THREE.Group(); tail.position.set(-23, 29, 0); body.add(tail);
+  let seg = tail; const segs = [];
+  for (let i = 0; i < 4; i++) {
+    const g = new THREE.Group(); g.position.set(i ? -4.5 : 0, i ? 1.4 : 0, 0); seg.add(g);
+    at(g, SPH(), i % 2 ? deep : gold, -2.4, 0, 0).scale.set(3.6 - i * .35, 2.6 - i * .2, 2.6 - i * .25);
+    at(g, SPH(), cream, -2.4, -1.6, 0).scale.set(3 - i * .3, 1.3, 2 - i * .2); // feathering underneath
+    segs.push(g); seg = g;
+  }
+  tail.rotation.z = .5;
+  root.scale.setScalar(DOG_SCALE);
+  root.userData = { body, head, tongue, legs, tail: segs };
+  return root;
 }
+
+// poses: run, carry (run with the ball), grab (head dips), sit, stand
+function poseDog(o, pose, k) {
+  const U = o.userData, run = pose === 'run' || pose === 'carry', t = time;
+  U.body.position.y = run ? Math.abs(Math.sin(t * 13)) * 2.4 : 0;
+  U.body.rotation.z = pose === 'sit' ? .42 : run ? Math.sin(t * 13) * .05 : 0;
+  for (const L of U.legs) {
+    if (run) {
+      L.hip.rotation.z = Math.sin(t * 13 + L.phase) * .8;
+      L.knee.rotation.z = (L.front ? -1 : 1) * Math.max(0, Math.sin(t * 13 + L.phase + 1.2)) * 1.1;
+    } else if (pose === 'sit') {
+      L.hip.rotation.z = L.front ? -.42 : 1.15;
+      L.knee.rotation.z = L.front ? 0 : -2.1;
+    } else { L.hip.rotation.z = 0; L.knee.rotation.z = 0; }
+  }
+  U.head.rotation.z = pose === 'grab' ? -.75 * Math.sin(Math.PI * Math.min(1, k)) : pose === 'carry' ? .12 : pose === 'sit' ? -.3 : Math.sin(t * 2) * .05;
+  for (const e of U.head.userData.ears) e.rotation.x = e.userData.side * (run ? .55 + Math.sin(t * 13) * .25 : .18 + Math.sin(t * 3) * .05);
+  U.tongue.visible = pose !== 'carry' && pose !== 'grab';
+  U.tongue.scale.x = 1 + Math.sin(t * 16) * .15;
+  const wag = pose === 'run' || pose === 'carry' ? 10 : 22, amp = pose === 'run' || pose === 'carry' ? .25 : .45;
+  U.tail.forEach((s, i) => { s.rotation.y = Math.sin(t * wag - i * .7) * amp; s.rotation.z = i ? .18 : 0; });
+}
+
+// the fetch: run up to the ball, grab it, carry it off in its mouth, sit, drop it, run away
+function dogStart(A) {
+  A.drop = freeSpot(300, hole.cup) || hole.start;
+  A.fx = ball.x < W / 2 ? -140 : W + 140; A.fy = ball.y + (Math.random() - .5) * 200;
+  const ix = ball.x - A.fx, iy = ball.y - A.fy, id = Math.hypot(ix, iy) || 1;
+  A.gx = ball.x - ix / id * DOG_MOUTH; A.gy = ball.y - iy / id * DOG_MOUTH; // stop with the mouth at the ball
+  A.dx = A.fx; A.dy = A.fy; A.pose = 'run';
+  sfx.bark();
+}
+function dogAnim(A) {
+  const [tx, ty] = A.drop;
+  if (A.t < 1.1) {
+    const k = ease(A.t / 1.1);
+    A.dx = A.fx + (A.gx - A.fx) * k; A.dy = A.fy + (A.gy - A.fy) * k; A.pose = 'run';
+    if (Math.random() < .5) puff(A.dx, A.dy, DUST[course.theme], 80, .5, 4);
+  } else if (A.t < 1.5) {
+    if (!A.grab) {
+      A.grab = 1; A.bx = ball.x; A.by = ball.y; toast(pick(LINES.dog), 2000); addRage(13); sfx.bark();
+      const hx = tx - ball.x, hy = ty - ball.y, hd = Math.hypot(hx, hy) || 1; A.hx = hx / hd; A.hy = hy / hd;
+    }
+    A.k = (A.t - 1.1) / .4; A.pose = 'grab';
+    ball.carryH = DOG_MOUTH_H * Math.max(0, (A.k - .4) / .6);
+  } else if (A.t < 3.1) {
+    const k = ease((A.t - 1.5) / 1.6), mx = A.bx + (tx - A.bx) * k, my = A.by + (ty - A.by) * k;
+    ball.x = mx; ball.y = my; ball.carryH = DOG_MOUTH_H;
+    A.dx = mx - A.hx * DOG_MOUTH; A.dy = my - A.hy * DOG_MOUTH; A.pose = 'carry';
+    if (Math.random() < .5) puff(A.dx, A.dy, DUST[course.theme], 80, .5, 4);
+  } else if (A.t < 3.8) {
+    if (!A.dropped) { A.dropped = 1; ball.carryH = undefined; ball.x = tx; ball.y = ty; sfx.bark(); }
+    A.pose = 'sit';
+  } else {
+    ball.vx = ball.vy = 1; ball.moving = true; ball.trolled = true;
+    T.fx.dog = { t: 1.6, x: A.dx, y: A.dy, dir: A.dx < W / 2 ? -1 : 1 };
+    laugh(); endAnim();
+  }
+}
+
+
 
 // a ride-on mower with a groundskeeper in a cap (or a moon rover with an astronaut)
 function mowerModel() {
@@ -3491,6 +3567,10 @@ function build3D() {
   if (T.mower) U0.mower = prop(mowerModel());
   if (T.raccoon) U0.raccoon = prop(raccoonModel());
   if (T.peel) U0.peel = prop(peelModel());
+  if (T.dog) {
+    U0.woof = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTex('WOOF!', true), transparent: true, depthTest: false }));
+    U0.woof.scale.set(130, 33, 1); U0.woof.renderOrder = 6; U0.woof.visible = false; level3D.add(U0.woof);
+  }
   if (T.tornado) U0.tornado = prop(tornadoModel());
   if (T.boulder) U0.boulder = prop(boulderModel());
   U0.portals = hole.portals.flatMap(([ax, ay, bx, by]) => [[ax, ay, 0xff8a1f, 1], [bx, by, 0x2fa8ff, -1]].map(([x, y, col, dir]) => {
@@ -3800,12 +3880,15 @@ function drawTrolls(U) {
   if (U.dog) {
     const mine = A && A.type === 'dog', L = T.fx.dog, o = U.dog;
     o.visible = !!(mine || L);
+    if (U.woof && !o.visible) U.woof.visible = false;
     if (o.visible) {
-      let x, y;
-      if (mine) { x = A.dx; y = A.dy; } else { const k = 1 - L.t / 1.6; x = L.x + L.dir * k * 800; y = L.y; }
+      let x, y, pose = 'run';
+      if (mine) { x = A.dx; y = A.dy; pose = A.pose || 'run'; } else { const k = 1 - L.t / 1.6; x = L.x + L.dir * k * 800; y = L.y; }
       const moving = faceMove(o, x, y);
-      o.position.y = moving ? Math.abs(Math.sin(time * 14)) * 3 : 0;
-      runLegs(o, moving); o.userData.tail.rotation.x = Math.sin(time * 20) * .6;
+      poseDog(o, (pose === 'run' || pose === 'carry') && !moving ? 'stand' : pose, mine ? A.k || 0 : 0);
+      // a big WOOF when it grabs the ball and when it sits down with it
+      U.woof.visible = !!(mine && (pose === 'grab' || pose === 'sit'));
+      if (U.woof.visible) { place(U.woof, x, y, 105 + Math.sin(time * 12) * 3); U.woof.material.rotation = Math.sin(time * 9) * .08; }
     }
   }
   if (U.raccoon) {
