@@ -1,12 +1,17 @@
 # 😡 Wacky Rage Golf
 
-Three courses of pixel-art 3D mini golf, 18 holes each. Every single hole is out to get you.
+Three courses of pixel-art 3D mini golf, 18 holes each, plus three 9-hole holiday courses. Every single hole is out to get you.
 
 Pick a course on the course map (🗺️):
 
 - 🌳 **Meadow Links**: green grass, ponds, and a hand that lives in the cup.
 - 🌵 **Dune Desert**: quicksand, cactus bumpers, camels crossing, vultures, sandstorms, mirage cups and sinkholes. The back nine adds a camel caravan, a zig-zag scorpion pass, twin sinkholes, a quicksand maze, dune buggies and a mirage market.
 - 🌙 **Moon Base**: low gravity (lobs float, things roll further), black holes that suck your ball in, asteroids, the space void, and the UFO is home. The back nine adds a satellite slalom, the dark side (power cuts), binary black holes, an asteroid storm, a launch pad over the void and a space junkyard.
+- 🎃 **Spooky Hollow** (Halloween): a moonlit graveyard with dead trees, glowing jack-o'-lanterns, a haunted house, bats and ghosts. Jack-o'-lantern bumpers, a witch's swamp, a haunted hallway where the lights go out, and a ghost cup that won't stay put.
+- 🎄 **Frosty Village** (Christmas): snow and ice, so everything slides about twice as far. Snowy pines with fairy lights, snowmen, a gingerbread house, falling snow, present bumpers, a chimney with a flue that slams shut and candy canes on the move.
+- 🐰 **Bunny Meadow** (Easter): a pastel spring with blossom trees, tulips, giant painted eggs, hopping bunnies and a rainbow. Egg bumpers, a cup that hops away, hidden-egg decoy cups and flowers that are not all friendly.
+
+Each holiday course has its own music loop too.
 
 A minimap in the corner shows the whole hole. The holes of Meadow Links:
 
